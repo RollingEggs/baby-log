@@ -134,7 +134,7 @@ async function apiPost(action, body = {}) {
 }
 
 async function apiFetchRecords(date) {
-  return apiGet('getRecords', { date });
+  return apiPost('getRecords', { date });
 }
 
 async function apiSaveRecord(record) {
@@ -146,7 +146,7 @@ async function apiDeleteRecord(id) {
 }
 
 async function apiFetchStats(from, to) {
-  return apiGet('getStats', { from, to });
+  return apiPost('getStats', { from, to });
 }
 
 /* ============================================================
@@ -257,14 +257,23 @@ function addFeedingCard(container, child, data) {
   card.dataset.child = child;
 
   if (data) {
-    card.querySelector('.feeding-type').value      = data.type    || '母乳';
-    card.querySelector('.feeding-time').value      = data.time    || '';
-    card.querySelector('.feeding-left-min').value  = data.leftMin  != null ? data.leftMin  : '';
-    card.querySelector('.feeding-right-min').value = data.rightMin != null ? data.rightMin : '';
-    card.querySelector('.feeding-amount').value    = data.amount   != null ? data.amount   : '';
-    card.querySelector('.feeding-memo').value      = data.memo    || '';
+    card.querySelector('.feeding-type').value = data.type || '母乳';
+    const isMilk = data.type === 'ミルク';
+    if (isMilk) {
+      card.querySelector('.feeding-milk-start').value = data.start  || '';
+      card.querySelector('.feeding-milk-end').value   = data.end    || '';
+      card.querySelector('.feeding-amount').value     = data.amount != null ? data.amount : '';
+    } else {
+      card.querySelector('.feeding-left-start').value  = data.start      || '';
+      card.querySelector('.feeding-left-end').value    = data.end        || '';
+      card.querySelector('.feeding-right-start').value = data.rightStart || '';
+      card.querySelector('.feeding-right-end').value   = data.rightEnd   || '';
+    }
+    card.querySelector('.feeding-memo').value = data.memo || '';
   } else {
-    card.querySelector('.feeding-time').value = currentTimeString();
+    const now = currentTimeString();
+    card.querySelector('.feeding-milk-start').value = now;
+    card.querySelector('.feeding-left-start').value = now;
   }
 
   syncFeedingTypeVisibility(card);
@@ -275,8 +284,9 @@ function addFeedingCard(container, child, data) {
 
 function syncFeedingTypeVisibility(card) {
   const isMilk = card.querySelector('.feeding-type').value === 'ミルク';
-  card.querySelector('.breast-row').classList.toggle('hidden', isMilk);
-  card.querySelector('.milk-row').classList.toggle('hidden', !isMilk);
+  card.querySelector('.breast-times').classList.toggle('hidden', isMilk);
+  card.querySelector('.milk-times').classList.toggle('hidden', !isMilk);
+  card.querySelector('.milk-amount').classList.toggle('hidden', !isMilk);
 }
 
 function attachFeedingCardEvents(card) {
@@ -288,7 +298,8 @@ function attachFeedingCardEvents(card) {
     debouncedSave();
   });
 
-  ['feeding-time', 'feeding-left-min', 'feeding-right-min', 'feeding-amount', 'feeding-memo'].forEach((cls) => {
+  ['feeding-left-start', 'feeding-left-end', 'feeding-right-start', 'feeding-right-end',
+   'feeding-milk-start', 'feeding-milk-end', 'feeding-amount', 'feeding-memo'].forEach((cls) => {
     const el = card.querySelector('.' + cls);
     if (!el) return;
     el.addEventListener('change', () => { showSaveStatus('saving', '保存中...'); debouncedSave(); });
@@ -296,7 +307,11 @@ function attachFeedingCardEvents(card) {
   });
 
   card.querySelector('.feeding-now-btn').addEventListener('click', () => {
-    card.querySelector('.feeding-time').value = currentTimeString();
+    const isMilk = card.querySelector('.feeding-type').value === 'ミルク';
+    const target = isMilk
+      ? card.querySelector('.feeding-milk-start')
+      : card.querySelector('.feeding-left-start');
+    target.value = currentTimeString();
     executeSave(card);
   });
 
@@ -306,20 +321,25 @@ function attachFeedingCardEvents(card) {
 }
 
 function collectFeedingData(card) {
-  const leftMin  = card.querySelector('.feeding-left-min').value;
-  const rightMin = card.querySelector('.feeding-right-min').value;
-  const amount   = card.querySelector('.feeding-amount').value;
+  const type   = card.querySelector('.feeding-type').value;
+  const isMilk = type === 'ミルク';
+  const amount = card.querySelector('.feeding-amount').value;
   return {
-    id:       card.dataset.id,
-    date:     state.currentDate,
-    child:    Number(card.dataset.child),
-    category: 'feeding',
-    type:     card.querySelector('.feeding-type').value,
-    time:     card.querySelector('.feeding-time').value,
-    leftMin:  leftMin  !== '' ? Number(leftMin)  : null,
-    rightMin: rightMin !== '' ? Number(rightMin) : null,
-    amount:   amount   !== '' ? Number(amount)   : null,
-    memo:     card.querySelector('.feeding-memo').value,
+    id:         card.dataset.id,
+    date:       state.currentDate,
+    child:      Number(card.dataset.child),
+    category:   'feeding',
+    type,
+    start:      isMilk
+                  ? card.querySelector('.feeding-milk-start').value
+                  : card.querySelector('.feeding-left-start').value,
+    end:        isMilk
+                  ? card.querySelector('.feeding-milk-end').value
+                  : card.querySelector('.feeding-left-end').value,
+    rightStart: isMilk ? '' : card.querySelector('.feeding-right-start').value,
+    rightEnd:   isMilk ? '' : card.querySelector('.feeding-right-end').value,
+    amount:     amount !== '' ? Number(amount) : null,
+    memo:       card.querySelector('.feeding-memo').value,
   };
 }
 
@@ -597,19 +617,19 @@ function buildEventHTML(events) {
     const cls = r.category === 'feeding' ? 'tt-feeding' : 'tt-excretion';
     let detail = '';
     if (r.category === 'feeding') {
-      if (r.type === 'ミルク' && r.amount != null) {
-        detail = `${r.amount}ml`;
+      if (r.type === 'ミルク') {
+        detail = r.amount != null ? `${r.amount}ml` : '';
       } else {
         const parts = [];
-        if (r.leftMin)  parts.push(`左${r.leftMin}分`);
-        if (r.rightMin) parts.push(`右${r.rightMin}分`);
+        if (r.start) parts.push(`左${r.start}${r.end ? '〜' + r.end : ''}`);
+        if (r.rightStart) parts.push(`右${r.rightStart}${r.rightEnd ? '〜' + r.rightEnd : ''}`);
         detail = parts.join(' ');
       }
     } else {
       detail = r.type;
     }
     return `<div class="tt-event ${cls}">
-      <span class="tt-event-time">${r.time}</span>
+      <span class="tt-event-time">${r.start || ''}</span>
       <span class="tt-event-detail">${detail}</span>
     </div>`;
   }).join('');

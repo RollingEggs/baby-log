@@ -219,38 +219,45 @@
     <article class="card feeding-card">
       <input type="hidden" class="record-id">
       <div class="card-header">
-        <div class="card-time-row">
-          <input type="time" class="time-input feeding-time" aria-label="時刻">
-          <button class="now-btn feeding-now-btn" type="button">NOW</button>
+        <!-- 1行目: 種類 + 量（ミルクのみ） -->
+        <div class="feeding-type-row">
+          <select class="form-select feeding-type" aria-label="種類">
+            <option value="母乳">母乳</option>
+            <option value="ミルク">ミルク</option>
+          </select>
+          <div class="milk-amount hidden">
+            <input type="number" class="breast-input feeding-amount"
+                   min="0" max="500" step="5" placeholder="0" aria-label="量(ml)">
+            <span class="breast-unit">ml</span>
+          </div>
         </div>
         <button class="icon-btn delete-btn" aria-label="削除">🗑</button>
       </div>
       <div class="card-body">
-        <select class="form-select feeding-type" aria-label="種類">
-          <option value="母乳">母乳</option>
-          <option value="ミルク">ミルク</option>
-        </select>
-        <!-- 母乳: 左右乳房の時間 -->
-        <div class="breast-row">
-          <div class="breast-field">
-            <label class="breast-label">左</label>
-            <input type="number" class="breast-input feeding-left-min"
-                   min="0" max="60" placeholder="0" aria-label="左乳房（分）">
-            <span class="breast-unit">分</span>
+        <!-- 母乳: 左・右の開始〜終了 -->
+        <div class="breast-times">
+          <div class="breast-time-row">
+            <span class="breast-label">左</span>
+            <input type="time" class="time-input feeding-left-start" aria-label="左 開始">
+            <span class="time-sep">〜</span>
+            <input type="time" class="time-input feeding-left-end" aria-label="左 終了">
           </div>
-          <div class="breast-field">
-            <label class="breast-label">右</label>
-            <input type="number" class="breast-input feeding-right-min"
-                   min="0" max="60" placeholder="0" aria-label="右乳房（分）">
-            <span class="breast-unit">分</span>
+          <div class="breast-time-row">
+            <span class="breast-label">右</span>
+            <input type="time" class="time-input feeding-right-start" aria-label="右 開始">
+            <span class="time-sep">〜</span>
+            <input type="time" class="time-input feeding-right-end" aria-label="右 終了">
           </div>
         </div>
-        <!-- ミルク: 量 -->
-        <div class="milk-row hidden">
-          <input type="number" class="form-input feeding-amount"
-                 min="0" max="500" step="5" placeholder="0" aria-label="量(ml)">
-          <span class="breast-unit">ml</span>
+        <!-- ミルク: 開始〜終了のみ -->
+        <div class="milk-times hidden">
+          <div class="breast-time-row">
+            <input type="time" class="time-input feeding-milk-start" aria-label="開始">
+            <span class="time-sep">〜</span>
+            <input type="time" class="time-input feeding-milk-end" aria-label="終了">
+          </div>
         </div>
+        <button class="now-btn feeding-now-btn" type="button">NOW 開始</button>
         <input type="text" class="form-input feeding-memo" placeholder="メモ" aria-label="メモ">
       </div>
     </article>

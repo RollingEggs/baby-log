@@ -17,19 +17,20 @@
 const SHEET_NAME = 'records';
 
 const COL = {
-  ID:         0,
-  DATE:       1,
-  CHILD:      2,
-  CATEGORY:   3,
-  TYPE:       4,
-  TIME:       5,
-  LEFT_MIN:   6,
-  RIGHT_MIN:  7,
-  AMOUNT:     8,
-  MEMO:       9,
-  CREATED_AT: 10,
-  UPDATED_AT: 11,
-  COUNT:      12,
+  ID:          0,
+  DATE:        1,
+  CHILD:       2,
+  CATEGORY:    3,
+  TYPE:        4,
+  START:       5,  // 母乳=左開始, ミルク=開始
+  END:         6,  // 母乳=左終了, ミルク=終了
+  RIGHT_START: 7,  // 母乳=右開始
+  AMOUNT:      8,
+  MEMO:        9,
+  CREATED_AT:  10,
+  UPDATED_AT:  11,
+  RIGHT_END:   12, // 母乳=右終了
+  COUNT:       13,
 };
 
 /* ============================================================
@@ -40,8 +41,6 @@ function doGet(e) {
   try {
     const action = e.parameter.action;
     switch (action) {
-      case 'getRecords':
-        return jsonResponse({ success: true, data: getRecords(e.parameter.date) });
       case 'getStats':
         return jsonResponse({ success: true, data: getStats(e.parameter.from, e.parameter.to) });
       default:
@@ -58,6 +57,10 @@ function doPost(e) {
     const body   = JSON.parse(e.postData.contents);
     const action = body.action;
     switch (action) {
+      case 'getRecords':
+        return jsonResponse({ success: true, data: getRecords(body.date) });
+      case 'getStats':
+        return jsonResponse({ success: true, data: getStats(body.from, body.to) });
       case 'saveRecord':
         return jsonResponse({ success: true, data: saveRecord(body) });
       case 'deleteRecord':
@@ -87,16 +90,22 @@ function getSheet() {
 
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
-    const headers = ['ID', 'Date', 'Child', 'Category', 'Type', 'Time',
-                     'LeftMin', 'RightMin', 'Amount', 'Memo', 'CreatedAt', 'UpdatedAt'];
+    const headers = ['ID', 'Date', 'Child', 'Category', 'Type',
+                     'Start', 'End', 'RightStart', 'Amount', 'Memo',
+                     'CreatedAt', 'UpdatedAt', 'RightEnd'];
     sheet.appendRow(headers);
     const headerRange = sheet.getRange(1, 1, 1, headers.length);
     headerRange.setFontWeight('bold');
     headerRange.setBackground('#FFE8EA');
     headerRange.setFontColor('#4A4A4A');
-    sheet.getRange(2, COL.DATE + 1, sheet.getMaxRows() - 1, 1).setNumberFormat('@STRING@');
-    sheet.getRange(2, COL.TIME + 1, sheet.getMaxRows() - 1, 1).setNumberFormat('@STRING@');
   }
+
+  // 日付・時刻列は常に文字列フォーマットを適用（GASの自動変換防止）
+  const lastRow = Math.max(sheet.getLastRow(), 2);
+  const textCols = [COL.DATE, COL.START, COL.END, COL.RIGHT_START, COL.RIGHT_END];
+  textCols.forEach(function(col) {
+    sheet.getRange(2, col + 1, lastRow - 1, 1).setNumberFormat('@STRING@');
+  });
 
   return sheet;
 }
@@ -109,27 +118,26 @@ function getAllRows(sheet) {
 
 function cellToStr(val) {
   if (val instanceof Date) {
-    return Utilities.formatDate(val, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm");
+    return Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   }
   if (val === null || val === undefined) return '';
-  return String(val);
+  return String(val).trim();
 }
 
 function rowToRecord(row) {
-  const leftMin  = row[COL.LEFT_MIN];
-  const rightMin = row[COL.RIGHT_MIN];
-  const amount   = row[COL.AMOUNT];
+  const amount = row[COL.AMOUNT];
   return {
-    id:       cellToStr(row[COL.ID]),
-    date:     cellToStr(row[COL.DATE]).substring(0, 10),
-    child:    Number(row[COL.CHILD]) || 1,
-    category: cellToStr(row[COL.CATEGORY]),
-    type:     cellToStr(row[COL.TYPE]),
-    time:     cellToStr(row[COL.TIME]),
-    leftMin:  (leftMin  !== '' && leftMin  !== null && !isNaN(Number(leftMin)))  ? Number(leftMin)  : null,
-    rightMin: (rightMin !== '' && rightMin !== null && !isNaN(Number(rightMin))) ? Number(rightMin) : null,
-    amount:   (amount   !== '' && amount   !== null && !isNaN(Number(amount)))   ? Number(amount)   : null,
-    memo:     cellToStr(row[COL.MEMO]),
+    id:         cellToStr(row[COL.ID]),
+    date:       cellToStr(row[COL.DATE]).substring(0, 10),
+    child:      Number(row[COL.CHILD]) || 1,
+    category:   cellToStr(row[COL.CATEGORY]),
+    type:       cellToStr(row[COL.TYPE]),
+    start:      cellToStr(row[COL.START]),
+    end:        cellToStr(row[COL.END]),
+    rightStart: cellToStr(row[COL.RIGHT_START]),
+    rightEnd:   cellToStr(row[COL.RIGHT_END]),
+    amount:     (amount !== '' && amount !== null && !isNaN(Number(amount))) ? Number(amount) : null,
+    memo:       cellToStr(row[COL.MEMO]),
   };
 }
 
@@ -161,28 +169,40 @@ function saveRecord(data) {
   const rowData = [
     data.id,
     data.date,
-    data.child    != null ? data.child    : 1,
+    data.child      != null ? data.child      : 1,
     data.category,
-    data.type     || '',
-    data.time     || '',
-    data.leftMin  != null ? data.leftMin  : '',
-    data.rightMin != null ? data.rightMin : '',
-    data.amount   != null ? data.amount   : '',
-    data.memo     || '',
-    '',
-    now,
+    data.type       || '',
+    data.start      || '',
+    data.end        || '',
+    data.rightStart || '',
+    data.amount     != null ? data.amount     : '',
+    data.memo       || '',
+    '',   // CREATED_AT (下で設定)
+    now,  // UPDATED_AT
+    data.rightEnd   || '',
   ];
 
   const existingIdx = rows.findIndex(function(row) {
     return cellToStr(row[COL.ID]) === data.id;
   });
 
+  const textCols = [COL.DATE, COL.START, COL.END, COL.RIGHT_START, COL.RIGHT_END];
+
   if (existingIdx >= 0) {
     rowData[COL.CREATED_AT] = cellToStr(rows[existingIdx][COL.CREATED_AT]) || now;
-    sheet.getRange(existingIdx + 2, 1, 1, COL.COUNT).setValues([rowData]);
+    const updateRow = existingIdx + 2;
+    // 文字列フォーマットをセットしてから値を書き込み（GASの日付自動変換防止）
+    textCols.forEach(function(col) {
+      sheet.getRange(updateRow, col + 1).setNumberFormat('@STRING@');
+    });
+    sheet.getRange(updateRow, 1, 1, COL.COUNT).setValues([rowData]);
   } else {
     rowData[COL.CREATED_AT] = now;
-    sheet.appendRow(rowData);
+    const newRow = sheet.getLastRow() + 1;
+    textCols.forEach(function(col) {
+      sheet.getRange(newRow, col + 1).setNumberFormat('@STRING@');
+    });
+    sheet.getRange(newRow, 1, 1, COL.COUNT).setValues([rowData]);
   }
 
   return { id: data.id };
@@ -203,6 +223,18 @@ function deleteRecord(id) {
 /* ============================================================
    統計
    ============================================================ */
+
+function minutesBetween(startStr, endStr) {
+  if (!startStr || !endStr) return 0;
+  const parts1 = startStr.split(':');
+  const parts2 = endStr.split(':');
+  if (parts1.length < 2 || parts2.length < 2) return 0;
+  const sh = Number(parts1[0]), sm = Number(parts1[1]);
+  const eh = Number(parts2[0]), em = Number(parts2[1]);
+  if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return 0;
+  const diff = (eh * 60 + em) - (sh * 60 + sm);
+  return diff > 0 ? diff : 0;
+}
 
 function getStats(fromDate, toDate) {
   if (!fromDate || !toDate) throw new Error('from と to パラメータが必要です');
@@ -226,8 +258,8 @@ function getStats(fromDate, toDate) {
 
     const milkFeedings = feeding.filter(function(r) { return r.type === 'ミルク' && r.amount != null; });
     const totalMilk    = milkFeedings.reduce(function(s, r) { return s + r.amount; }, 0);
-    const totalLeft    = feeding.reduce(function(s, r) { return s + (r.leftMin  || 0); }, 0);
-    const totalRight   = feeding.reduce(function(s, r) { return s + (r.rightMin || 0); }, 0);
+    const totalLeft    = feeding.reduce(function(s, r) { return s + minutesBetween(r.start, r.end); }, 0);
+    const totalRight   = feeding.reduce(function(s, r) { return s + minutesBetween(r.rightStart, r.rightEnd); }, 0);
 
     return {
       feeding: {
@@ -278,7 +310,7 @@ function getStats(fromDate, toDate) {
     child1: calcChildStats(1),
     child2: calcChildStats(2),
     daily: {
-      dates:            dates,
+      dates:             dates,
       c1FeedingCounts:   c1FeedingCounts,
       c2FeedingCounts:   c2FeedingCounts,
       c1ExcretionCounts: c1ExcretionCounts,
