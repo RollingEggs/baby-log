@@ -3,26 +3,31 @@
  *
  * セットアップ手順:
  *   1. Google スプレッドシートを新規作成し、シート名を "records" に変更
- *   2. SPREADSHEET_ID を取得したスプレッドシートのIDに書き換える
- *      (スプレッドシートURLの /d/<ID>/edit の部分)
- *   3. SECRET_TOKEN を任意の文字列に設定し、app.js 側と一致させる
- *   4. 「デプロイ」→「新しいデプロイ」→ 種類: ウェブアプリ
+ *   2. GASエディタ上部「プロジェクトの設定」→「スクリプトプロパティ」に以下を追加:
+ *        SPREADSHEET_ID  ← スプレッドシートのID
+ *        SECRET_TOKEN    ← 任意の文字列（app.js と同じ値）
+ *   3. 「デプロイ」→「新しいデプロイ」→ 種類: ウェブアプリ
  *      - 次のユーザーとして実行: 自分
  *      - アクセスできるユーザー: 全員
- *   5. デプロイ後のウェブアプリ URL を app.js の GAS_URL に設定する
+ *   4. デプロイ後のウェブアプリ URL を app.js の GAS_URL に設定する
  */
 
 'use strict';
 
 /* ============================================================
-   設定 (必ず変更してください)
+   設定はスクリプトプロパティから読み込む (コードに書かない)
+   GASエディタ → プロジェクトの設定 → スクリプトプロパティ で設定すること
    ============================================================ */
 
-/** スプレッドシート ID */
-const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
-
-/** 認証トークン (app.js の SECRET_TOKEN と一致させる) */
-const SECRET_TOKEN = 'YOUR_SECRET_TOKEN_HERE';
+/**
+ * スクリプトプロパティを取得するヘルパー
+ * 未設定の場合はデプロイ前に気づけるよう例外を投げる
+ */
+function getProp(key) {
+  const val = PropertiesService.getScriptProperties().getProperty(key);
+  if (!val) throw new Error(`スクリプトプロパティ "${key}" が設定されていません`);
+  return val;
+}
 
 /** レコードシート名 */
 const SHEET_NAME = 'records';
@@ -114,7 +119,7 @@ function doPost(e) {
    ============================================================ */
 
 function validateToken(token) {
-  return token === SECRET_TOKEN;
+  return token === getProp('SECRET_TOKEN');
 }
 
 /** JSON レスポンスを返す */
@@ -129,7 +134,7 @@ function jsonResponse(data) {
  * @returns {GoogleAppsScript.Spreadsheet.Sheet}
  */
 function getSheet() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.openById(getProp('SPREADSHEET_ID'));
   let sheet = ss.getSheetByName(SHEET_NAME);
 
   if (!sheet) {
