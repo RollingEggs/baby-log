@@ -418,7 +418,49 @@ input, select { font-family: inherit; font-size: inherit; }
   flex-shrink: 0;
 }
 
-/* ミルク量入力 */
+/* 授乳カード: 1行目（種類 + 量） */
+.feeding-type-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.feeding-type-row .form-select {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+.milk-amount {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+/* 授乳カード: 時刻行（左/右/ミルク） */
+.breast-times,
+.milk-times {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.breast-time-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.breast-time-row .time-input {
+  flex: 1;
+  min-width: 0;
+}
+.time-sep {
+  font-size: 0.78rem;
+  color: var(--c-text-sub);
+  flex-shrink: 0;
+}
+
+/* ミルク量入力（旧レイアウト互換） */
 .milk-row {
   display: flex;
   align-items: center;
