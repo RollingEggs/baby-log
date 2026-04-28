@@ -2,27 +2,39 @@
  * 育児記録アプリ フロントエンド
  * GitHub Pages + Google Apps Script バックエンド
  *
- * セットアップ手順:
- *   1. Code.gs を GAS にデプロイし、ウェブアプリURL を取得
- *   2. GAS_URL を書き換える
- *   3. SECRET_TOKEN を Code.gs と同じ値に書き換える
+ * GAS URL と認証トークンはコードに書かず、
+ * ブラウザの localStorage に保存します。
+ * 初回アクセス時に設定画面が開くので、そこで入力してください。
  */
 
 'use strict';
 
 /* ============================================================
-   設定定数 (デプロイ前に必ず変更してください)
+   設定: localStorage から読み書きする
    ============================================================ */
 
-/** GAS ウェブアプリURL */
-const GAS_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+const LS_KEY_GAS_URL = 'baby_gas_url';
+const LS_KEY_TOKEN   = 'baby_secret_token';
 
-/**
- * 認証トークン — Code.gs の SECRET_TOKEN と一致させること。
- * ※ GitHub Pages は公開リポジトリなのでソースが見えます。
- *   本番運用では GitHub Secrets や環境変数で管理することを検討してください。
- */
-const SECRET_TOKEN = 'YOUR_SECRET_TOKEN_HERE';
+/** 保存済み設定を返す */
+function loadConfig() {
+  return {
+    gasUrl: localStorage.getItem(LS_KEY_GAS_URL) || '',
+    token:  localStorage.getItem(LS_KEY_TOKEN)   || '',
+  };
+}
+
+/** 設定を localStorage に保存する */
+function saveConfig(gasUrl, token) {
+  localStorage.setItem(LS_KEY_GAS_URL, gasUrl.trim());
+  localStorage.setItem(LS_KEY_TOKEN,   token.trim());
+}
+
+/** 設定が揃っているか確認する */
+function isConfigured() {
+  const { gasUrl, token } = loadConfig();
+  return gasUrl.startsWith('https://') && token.length > 0;
+}
 
 /* ============================================================
    アプリ状態
@@ -174,9 +186,10 @@ function showError(message) {
  * @returns {Promise<any>}
  */
 async function apiGet(action, params = {}) {
-  const url = new URL(GAS_URL);
+  const { gasUrl, token } = loadConfig();
+  const url = new URL(gasUrl);
   url.searchParams.set('action', action);
-  url.searchParams.set('token', SECRET_TOKEN);
+  url.searchParams.set('token', token);
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
   }
@@ -199,9 +212,10 @@ async function apiGet(action, params = {}) {
  * @returns {Promise<any>}
  */
 async function apiPost(action, body = {}) {
-  const payload = JSON.stringify({ ...body, action, token: SECRET_TOKEN });
+  const { gasUrl, token } = loadConfig();
+  const payload = JSON.stringify({ ...body, action, token });
 
-  const res = await fetch(GAS_URL, {
+  const res = await fetch(gasUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain' },
     body: payload,
@@ -930,17 +944,117 @@ function initTabs() {
 }
 
 /* ============================================================
+   設定モーダル
+   ============================================================ */
+
+/**
+ * 設定モーダルを開く
+ * @param {boolean} required  true = 閉じるボタンを非表示（初回設定時）
+ */
+function openSettingsModal(required = false) {
+  const overlay = document.getElementById('settings-overlay');
+  overlay.classList.remove('hidden');
+  overlay.classList.toggle('required', required);
+
+  // 保存済みの値があれば入力欄に反映
+  const { gasUrl, token } = loadConfig();
+  document.getElementById('input-gas-url').value = gasUrl;
+  document.getElementById('input-token').value   = token;
+
+  document.getElementById('settings-error').classList.add('hidden');
+  document.getElementById('input-gas-url').focus();
+}
+
+function closeSettingsModal() {
+  document.getElementById('settings-overlay').classList.add('hidden');
+}
+
+function initSettingsModal() {
+  // ⚙️ ヘッダーボタン
+  document.getElementById('settings-btn').addEventListener('click', () => {
+    openSettingsModal(false);
+  });
+
+  // 閉じるボタン
+  document.getElementById('settings-close-btn').addEventListener('click', closeSettingsModal);
+
+  // オーバーレイ外クリックで閉じる (required モード以外)
+  document.getElementById('settings-overlay').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget &&
+        !e.currentTarget.classList.contains('required')) {
+      closeSettingsModal();
+    }
+  });
+
+  // トークン表示/非表示トグル
+  document.getElementById('toggle-token-btn').addEventListener('click', () => {
+    const input = document.getElementById('input-token');
+    input.type = input.type === 'password' ? 'text' : 'password';
+  });
+
+  // 保存ボタン
+  document.getElementById('settings-save-btn').addEventListener('click', handleSettingsSave);
+
+  // Enter キーでも保存
+  document.getElementById('settings-overlay').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handleSettingsSave();
+  });
+}
+
+async function handleSettingsSave() {
+  const gasUrl = document.getElementById('input-gas-url').value.trim();
+  const token  = document.getElementById('input-token').value.trim();
+  const errEl  = document.getElementById('settings-error');
+
+  // バリデーション
+  if (!gasUrl) {
+    errEl.textContent = 'GAS ウェブアプリ URL を入力してください';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (!gasUrl.startsWith('https://')) {
+    errEl.textContent = 'URL は https:// から始まる必要があります';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (!token) {
+    errEl.textContent = '認証トークンを入力してください';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  errEl.classList.add('hidden');
+
+  // localStorage に保存
+  saveConfig(gasUrl, token);
+
+  // モーダルを閉じてアプリを起動
+  closeSettingsModal();
+  await startApp();
+}
+
+/* ============================================================
    アプリ初期化
    ============================================================ */
 
-async function init() {
+/** 設定完了後にアプリ本体を起動する */
+async function startApp() {
   initTabs();
   initDateNav();
   initAddButtons();
   initStatsTab();
-
-  // 今日の記録を初回ロード
   await loadRecords(state.currentDate);
+}
+
+async function init() {
+  initSettingsModal();
+
+  if (!isConfigured()) {
+    // 未設定: 設定モーダルを強制表示（閉じられない）
+    openSettingsModal(true);
+  } else {
+    await startApp();
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

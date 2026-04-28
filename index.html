@@ -16,8 +16,64 @@
   <!-- ===== ヘッダー ===== -->
   <header class="app-header">
     <h1 class="app-title">🍼 育児記録</h1>
-    <div id="save-status" class="save-status" aria-live="polite"></div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div id="save-status" class="save-status" aria-live="polite"></div>
+      <button id="settings-btn" class="settings-btn" aria-label="設定">⚙️</button>
+    </div>
   </header>
+
+  <!-- ===== 設定モーダル ===== -->
+  <div id="settings-overlay" class="settings-overlay hidden" role="dialog" aria-modal="true" aria-label="初期設定">
+    <div class="settings-modal">
+      <div class="settings-header">
+        <h2 class="settings-title">⚙️ 接続設定</h2>
+        <button id="settings-close-btn" class="settings-close-btn" aria-label="閉じる">✕</button>
+      </div>
+
+      <div class="settings-body">
+        <p class="settings-desc">
+          入力した情報はこのブラウザにのみ保存されます。<br>コードには一切書かれません。
+        </p>
+
+        <div class="settings-field">
+          <label class="settings-label" for="input-gas-url">
+            GAS ウェブアプリ URL
+            <span class="settings-hint">GASデプロイ後に発行される <code>exec</code> で終わるURL</span>
+          </label>
+          <input id="input-gas-url" type="url" class="settings-input"
+                 placeholder="https://script.google.com/macros/s/.../exec"
+                 autocomplete="off" spellcheck="false">
+        </div>
+
+        <div class="settings-field">
+          <label class="settings-label" for="input-token">
+            認証トークン
+            <span class="settings-hint">Code.gs のスクリプトプロパティ SECRET_TOKEN に設定した値</span>
+          </label>
+          <div class="settings-token-row">
+            <input id="input-token" type="password" class="settings-input"
+                   placeholder="例: babyapp-2024" autocomplete="off">
+            <button id="toggle-token-btn" class="toggle-btn" type="button" aria-label="表示切替">👁</button>
+          </div>
+        </div>
+
+        <div id="settings-error" class="settings-error hidden"></div>
+
+        <button id="settings-save-btn" class="settings-save-btn">保存して開始</button>
+
+        <details class="settings-help">
+          <summary>設定方法を見る</summary>
+          <ol class="settings-help-list">
+            <li>Google スプレッドシートを新規作成し、シート名を <strong>records</strong> に変更</li>
+            <li>GASエディタ (<a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a>) で新規プロジェクトを作成し Code.gs を貼り付け</li>
+            <li>「プロジェクトの設定」→「スクリプトプロパティ」に <code>SPREADSHEET_ID</code> と <code>SECRET_TOKEN</code> を追加</li>
+            <li>「デプロイ」→「新しいデプロイ」→ ウェブアプリ（アクセス: 全員）でデプロイ</li>
+            <li>表示された URL をこの画面に貼り付けて保存</li>
+          </ol>
+        </details>
+      </div>
+    </div>
+  </div>
 
   <!-- ===== メインコンテンツ ===== -->
   <main class="app-main">
