@@ -234,30 +234,52 @@
         <button class="icon-btn delete-btn" aria-label="削除">🗑</button>
       </div>
       <div class="card-body">
-        <!-- 母乳: 左・右の開始〜終了 -->
+        <!-- 母乳: 左・右の開始/終了（各行にNOWボタン） -->
         <div class="breast-times">
-          <div class="breast-time-row">
+          <div class="breast-side-row">
             <span class="breast-label">左</span>
-            <input type="time" class="time-input feeding-left-start" aria-label="左 開始">
-            <span class="time-sep">〜</span>
-            <input type="time" class="time-input feeding-left-end" aria-label="左 終了">
+            <div class="side-fields">
+              <div class="time-now-row">
+                <span class="time-label-sm">開始</span>
+                <input type="time" class="time-input feeding-left-start" aria-label="左 開始">
+                <button class="now-btn-sm feeding-left-start-now" type="button">NOW</button>
+              </div>
+              <div class="time-now-row">
+                <span class="time-label-sm">終了</span>
+                <input type="time" class="time-input feeding-left-end" aria-label="左 終了">
+                <button class="now-btn-sm feeding-left-end-now" type="button">NOW</button>
+              </div>
+            </div>
           </div>
-          <div class="breast-time-row">
+          <div class="breast-side-row">
             <span class="breast-label">右</span>
-            <input type="time" class="time-input feeding-right-start" aria-label="右 開始">
-            <span class="time-sep">〜</span>
-            <input type="time" class="time-input feeding-right-end" aria-label="右 終了">
+            <div class="side-fields">
+              <div class="time-now-row">
+                <span class="time-label-sm">開始</span>
+                <input type="time" class="time-input feeding-right-start" aria-label="右 開始">
+                <button class="now-btn-sm feeding-right-start-now" type="button">NOW</button>
+              </div>
+              <div class="time-now-row">
+                <span class="time-label-sm">終了</span>
+                <input type="time" class="time-input feeding-right-end" aria-label="右 終了">
+                <button class="now-btn-sm feeding-right-end-now" type="button">NOW</button>
+              </div>
+            </div>
           </div>
         </div>
-        <!-- ミルク: 開始〜終了のみ -->
+        <!-- ミルク: 開始/終了（各行にNOWボタン） -->
         <div class="milk-times hidden">
-          <div class="breast-time-row">
+          <div class="time-now-row">
+            <span class="time-label-sm">開始</span>
             <input type="time" class="time-input feeding-milk-start" aria-label="開始">
-            <span class="time-sep">〜</span>
+            <button class="now-btn-sm feeding-milk-start-now" type="button">NOW</button>
+          </div>
+          <div class="time-now-row">
+            <span class="time-label-sm">終了</span>
             <input type="time" class="time-input feeding-milk-end" aria-label="終了">
+            <button class="now-btn-sm feeding-milk-end-now" type="button">NOW</button>
           </div>
         </div>
-        <button class="now-btn feeding-now-btn" type="button">NOW 開始</button>
         <input type="text" class="form-input feeding-memo" placeholder="メモ" aria-label="メモ">
       </div>
     </article>

@@ -438,29 +438,67 @@ input, select { font-family: inherit; font-size: inherit; }
   flex-shrink: 0;
 }
 
-/* 授乳カード: 時刻行（左/右/ミルク） */
+/* 授乳カード: 時刻エリア */
 .breast-times,
 .milk-times {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-}
-.breast-time-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.breast-time-row .time-input {
-  flex: 1;
-  min-width: 0;
-}
-.time-sep {
-  font-size: 0.78rem;
-  color: var(--c-text-sub);
-  flex-shrink: 0;
+  gap: 6px;
 }
 
-/* ミルク量入力（旧レイアウト互換） */
+/* 左/右ラベル + フィールド群 */
+.breast-side-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+.breast-side-row .breast-label {
+  padding-top: 5px;
+  flex-shrink: 0;
+}
+.side-fields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 時刻入力 + NOWボタンの行 */
+.time-now-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.time-now-row .time-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  padding: 4px 5px;
+}
+.time-label-sm {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--c-text-sub);
+  flex-shrink: 0;
+  width: 22px;
+}
+
+/* 個別NOWボタン */
+.now-btn-sm {
+  flex-shrink: 0;
+  padding: 4px 6px;
+  background: var(--c-secondary);
+  color: var(--c-text);
+  border-radius: var(--radius-sm);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  border: none;
+}
+.now-btn-sm:active { opacity: 0.7; }
+
+/* ミルク量入力 */
 .milk-row {
   display: flex;
   align-items: center;

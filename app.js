@@ -306,13 +306,20 @@ function attachFeedingCardEvents(card) {
     el.addEventListener('input',  () => { showSaveStatus('saving', '保存中...'); debouncedSave(); });
   });
 
-  card.querySelector('.feeding-now-btn').addEventListener('click', () => {
-    const isMilk = card.querySelector('.feeding-type').value === 'ミルク';
-    const target = isMilk
-      ? card.querySelector('.feeding-milk-start')
-      : card.querySelector('.feeding-left-start');
-    target.value = currentTimeString();
-    executeSave(card);
+  [
+    { btn: '.feeding-left-start-now',  field: '.feeding-left-start' },
+    { btn: '.feeding-left-end-now',    field: '.feeding-left-end' },
+    { btn: '.feeding-right-start-now', field: '.feeding-right-start' },
+    { btn: '.feeding-right-end-now',   field: '.feeding-right-end' },
+    { btn: '.feeding-milk-start-now',  field: '.feeding-milk-start' },
+    { btn: '.feeding-milk-end-now',    field: '.feeding-milk-end' },
+  ].forEach(({ btn, field }) => {
+    const el = card.querySelector(btn);
+    if (!el) return;
+    el.addEventListener('click', () => {
+      card.querySelector(field).value = currentTimeString();
+      executeSave(card);
+    });
   });
 
   card.querySelector('.delete-btn').addEventListener('click', () => {
