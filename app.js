@@ -14,26 +14,18 @@
    ============================================================ */
 
 const LS_KEY_GAS_URL = 'baby_gas_url';
-const LS_KEY_TOKEN   = 'baby_secret_token';
 
-/** 保存済み設定を返す */
 function loadConfig() {
-  return {
-    gasUrl: localStorage.getItem(LS_KEY_GAS_URL) || '',
-    token:  localStorage.getItem(LS_KEY_TOKEN)   || '',
-  };
+  return { gasUrl: localStorage.getItem(LS_KEY_GAS_URL) || '' };
 }
 
-/** 設定を localStorage に保存する */
-function saveConfig(gasUrl, token) {
+function saveConfig(gasUrl) {
   localStorage.setItem(LS_KEY_GAS_URL, gasUrl.trim());
-  localStorage.setItem(LS_KEY_TOKEN,   token.trim());
 }
 
-/** 設定が揃っているか確認する */
 function isConfigured() {
-  const { gasUrl, token } = loadConfig();
-  return gasUrl.startsWith('https://') && token.length > 0;
+  const { gasUrl } = loadConfig();
+  return gasUrl.startsWith('https://');
 }
 
 /* ============================================================
@@ -186,10 +178,9 @@ function showError(message) {
  * @returns {Promise<any>}
  */
 async function apiGet(action, params = {}) {
-  const { gasUrl, token } = loadConfig();
+  const { gasUrl } = loadConfig();
   const url = new URL(gasUrl);
   url.searchParams.set('action', action);
-  url.searchParams.set('token', token);
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
   }
@@ -212,8 +203,8 @@ async function apiGet(action, params = {}) {
  * @returns {Promise<any>}
  */
 async function apiPost(action, body = {}) {
-  const { gasUrl, token } = loadConfig();
-  const payload = JSON.stringify({ ...body, action, token });
+  const { gasUrl } = loadConfig();
+  const payload = JSON.stringify({ ...body, action });
 
   const res = await fetch(gasUrl, {
     method: 'POST',
@@ -957,9 +948,8 @@ function openSettingsModal(required = false) {
   overlay.classList.toggle('required', required);
 
   // 保存済みの値があれば入力欄に反映
-  const { gasUrl, token } = loadConfig();
+  const { gasUrl } = loadConfig();
   document.getElementById('input-gas-url').value = gasUrl;
-  document.getElementById('input-token').value   = token;
 
   document.getElementById('settings-error').classList.add('hidden');
   document.getElementById('input-gas-url').focus();
@@ -986,12 +976,6 @@ function initSettingsModal() {
     }
   });
 
-  // トークン表示/非表示トグル
-  document.getElementById('toggle-token-btn').addEventListener('click', () => {
-    const input = document.getElementById('input-token');
-    input.type = input.type === 'password' ? 'text' : 'password';
-  });
-
   // 保存ボタン
   document.getElementById('settings-save-btn').addEventListener('click', handleSettingsSave);
 
@@ -1003,10 +987,8 @@ function initSettingsModal() {
 
 async function handleSettingsSave() {
   const gasUrl = document.getElementById('input-gas-url').value.trim();
-  const token  = document.getElementById('input-token').value.trim();
   const errEl  = document.getElementById('settings-error');
 
-  // バリデーション
   if (!gasUrl) {
     errEl.textContent = 'GAS ウェブアプリ URL を入力してください';
     errEl.classList.remove('hidden');
@@ -1017,16 +999,9 @@ async function handleSettingsSave() {
     errEl.classList.remove('hidden');
     return;
   }
-  if (!token) {
-    errEl.textContent = '認証トークンを入力してください';
-    errEl.classList.remove('hidden');
-    return;
-  }
 
   errEl.classList.add('hidden');
-
-  // localStorage に保存
-  saveConfig(gasUrl, token);
+  saveConfig(gasUrl);
 
   // モーダルを閉じてアプリを起動
   closeSettingsModal();

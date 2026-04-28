@@ -32,7 +32,8 @@
 
       <div class="settings-body">
         <p class="settings-desc">
-          入力した情報はこのブラウザにのみ保存されます。<br>コードには一切書かれません。
+          GAS のウェブアプリ URL を貼り付けるだけで使えます。<br>
+          入力した情報はこのブラウザにのみ保存されます。
         </p>
 
         <div class="settings-field">
@@ -45,18 +46,6 @@
                  autocomplete="off" spellcheck="false">
         </div>
 
-        <div class="settings-field">
-          <label class="settings-label" for="input-token">
-            認証トークン
-            <span class="settings-hint">Code.gs のスクリプトプロパティ SECRET_TOKEN に設定した値</span>
-          </label>
-          <div class="settings-token-row">
-            <input id="input-token" type="password" class="settings-input"
-                   placeholder="例: babyapp-2024" autocomplete="off">
-            <button id="toggle-token-btn" class="toggle-btn" type="button" aria-label="表示切替">👁</button>
-          </div>
-        </div>
-
         <div id="settings-error" class="settings-error hidden"></div>
 
         <button id="settings-save-btn" class="settings-save-btn">保存して開始</button>
@@ -66,7 +55,7 @@
           <ol class="settings-help-list">
             <li>Google スプレッドシートを新規作成し、シート名を <strong>records</strong> に変更</li>
             <li>GASエディタ (<a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a>) で新規プロジェクトを作成し Code.gs を貼り付け</li>
-            <li>「プロジェクトの設定」→「スクリプトプロパティ」に <code>SPREADSHEET_ID</code> と <code>SECRET_TOKEN</code> を追加</li>
+            <li>「プロジェクトの設定」→「スクリプトプロパティ」に <code>SPREADSHEET_ID</code> を追加</li>
             <li>「デプロイ」→「新しいデプロイ」→ ウェブアプリ（アクセス: 全員）でデプロイ</li>
             <li>表示された URL をこの画面に貼り付けて保存</li>
           </ol>
