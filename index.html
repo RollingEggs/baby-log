@@ -4,135 +4,152 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#FF9AA2">
-  <title>育児記録</title>
+  <title>双子育児記録</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
   <!-- ===== ヘッダー ===== -->
   <header class="app-header">
-    <h1 class="app-title">🍼 育児記録</h1>
-    <div style="display:flex;align-items:center;gap:8px;">
+    <h1 class="app-title">🍼 双子育児記録</h1>
+    <div class="header-right">
       <div id="save-status" class="save-status" aria-live="polite"></div>
-      <button id="settings-btn" class="settings-btn" aria-label="設定">⚙️</button>
+      <button id="settings-btn" class="icon-btn" aria-label="設定">⚙️</button>
     </div>
   </header>
 
   <!-- ===== 設定モーダル ===== -->
-  <div id="settings-overlay" class="settings-overlay hidden" role="dialog" aria-modal="true" aria-label="初期設定">
+  <div id="settings-overlay" class="settings-overlay hidden" role="dialog" aria-modal="true">
     <div class="settings-modal">
       <div class="settings-header">
         <h2 class="settings-title">⚙️ 接続設定</h2>
-        <button id="settings-close-btn" class="settings-close-btn" aria-label="閉じる">✕</button>
+        <button id="settings-close-btn" class="icon-btn" aria-label="閉じる">✕</button>
       </div>
-
       <div class="settings-body">
         <p class="settings-desc">
-          GAS のウェブアプリ URL を貼り付けるだけで使えます。<br>
-          入力した情報はこのブラウザにのみ保存されます。
+          GAS の URL を貼り付けるだけで使えます。<br>
+          情報はこのブラウザにのみ保存されます。
         </p>
-
         <div class="settings-field">
-          <label class="settings-label" for="input-gas-url">
+          <label class="settings-label">
             GAS ウェブアプリ URL
-            <span class="settings-hint">GASデプロイ後に発行される <code>exec</code> で終わるURL</span>
+            <span class="settings-hint"><code>exec</code> で終わるURL</span>
           </label>
           <input id="input-gas-url" type="url" class="settings-input"
                  placeholder="https://script.google.com/macros/s/.../exec"
                  autocomplete="off" spellcheck="false">
         </div>
-
         <div id="settings-error" class="settings-error hidden"></div>
-
         <button id="settings-save-btn" class="settings-save-btn">保存して開始</button>
-
         <details class="settings-help">
           <summary>設定方法を見る</summary>
           <ol class="settings-help-list">
-            <li>Google スプレッドシートを新規作成し、シート名を <strong>records</strong> に変更</li>
-            <li>GASエディタ (<a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a>) で新規プロジェクトを作成し Code.gs を貼り付け</li>
-            <li>「プロジェクトの設定」→「スクリプトプロパティ」に <code>SPREADSHEET_ID</code> を追加</li>
-            <li>「デプロイ」→「新しいデプロイ」→ ウェブアプリ（アクセス: 全員）でデプロイ</li>
-            <li>表示された URL をこの画面に貼り付けて保存</li>
+            <li>Google スプレッドシートを新規作成（シート名: <code>records</code>）</li>
+            <li>スプレッドシートのメニュー「<strong>拡張機能</strong>」→「<strong>Apps Script</strong>」</li>
+            <li>Code.gs の内容を貼り付けて保存</li>
+            <li>「プロジェクトの設定」→ V8ランタイムを有効にする</li>
+            <li>「デプロイ」→「新しいデプロイ」→ ウェブアプリ（アクセス: 全員）</li>
+            <li>発行された URL をここに貼り付ける</li>
           </ol>
         </details>
       </div>
     </div>
   </div>
 
-  <!-- ===== 上部タブバー ===== -->
-  <nav class="tab-bar" role="navigation" aria-label="メインナビゲーション">
-    <button class="tab-btn active" data-tab="records" aria-selected="true">
-      <span class="tab-label">📝 記録</span>
-    </button>
-    <button class="tab-btn" data-tab="stats" aria-selected="false">
-      <span class="tab-label">📊 統計</span>
-    </button>
-  </nav>
+  <!-- ===== 固定ヘッダー群 ===== -->
+  <div class="sticky-top" id="sticky-top">
+
+    <!-- 日付ナビゲーション -->
+    <div class="date-nav-wrapper">
+      <div class="date-nav-scroll" id="date-nav-scroll"></div>
+      <button class="today-btn" id="today-btn">今日</button>
+    </div>
+
+    <!-- コンテンツタブ（授乳/排泄） - 記録ビューのみ表示 -->
+    <div class="content-tabs" id="content-tabs">
+      <button class="content-tab-btn active" data-content="feeding">🍼 授乳</button>
+      <button class="content-tab-btn" data-content="excretion">🚼 排泄</button>
+    </div>
+
+  </div>
 
   <!-- ===== メインコンテンツ ===== -->
-  <main class="app-main">
+  <main class="app-main" id="app-main">
 
-    <!-- ========== 記録タブ ========== -->
-    <div id="tab-records" class="tab-content active">
+    <!-- ローディング -->
+    <div id="loading" class="loading hidden">
+      <div class="loading-spinner"></div>
+      <span>読み込み中...</span>
+    </div>
+    <div id="error-msg" class="error-msg hidden" role="alert"></div>
 
-      <!-- 日付ナビゲーション -->
-      <div class="date-nav-wrapper">
-        <div class="date-nav-scroll" id="date-nav-scroll" role="tablist" aria-label="日付選択">
-          <!-- JS で描画 -->
+    <!-- ========== 記録ビュー ========== -->
+    <div id="view-records" class="view active">
+
+      <!-- 授乳コンテンツ -->
+      <div id="content-feeding" class="content-view active">
+        <div class="split-view">
+          <div class="child-column">
+            <div class="child-header child1-header">第一子</div>
+            <div id="child1-feeding-cards" class="cards-container"></div>
+            <button class="add-btn" id="add-child1-feeding">＋ 追加</button>
+          </div>
+          <div class="split-divider"></div>
+          <div class="child-column">
+            <div class="child-header child2-header">第二子</div>
+            <div id="child2-feeding-cards" class="cards-container"></div>
+            <button class="add-btn" id="add-child2-feeding">＋ 追加</button>
+          </div>
         </div>
-        <button class="today-btn" id="today-btn" aria-label="今日に戻る">今日</button>
       </div>
 
-      <!-- ローディング表示 -->
-      <div id="loading" class="loading hidden" aria-busy="true" aria-label="読み込み中">
-        <div class="loading-spinner"></div>
-        <span>読み込み中...</span>
+      <!-- 排泄コンテンツ -->
+      <div id="content-excretion" class="content-view">
+        <div class="split-view">
+          <div class="child-column">
+            <div class="child-header child1-header">第一子</div>
+            <div id="child1-excretion-cards" class="cards-container"></div>
+            <button class="add-btn" id="add-child1-excretion">＋ 追加</button>
+          </div>
+          <div class="split-divider"></div>
+          <div class="child-column">
+            <div class="child-header child2-header">第二子</div>
+            <div id="child2-excretion-cards" class="cards-container"></div>
+            <button class="add-btn" id="add-child2-excretion">＋ 追加</button>
+          </div>
+        </div>
       </div>
 
-      <!-- エラーメッセージ -->
-      <div id="error-msg" class="error-msg hidden" role="alert"></div>
+    </div><!-- /view-records -->
 
-      <!-- 授乳記録セクション -->
-      <section class="section" aria-label="授乳記録">
+    <!-- ========== 統計ビュー ========== -->
+    <div id="view-stats" class="view">
+
+      <!-- タイムライン -->
+      <section class="section">
         <div class="section-header">
-          <h2 class="section-title">🍼 授乳記録</h2>
+          <h2 class="section-title">⏱ タイムライン</h2>
+          <span id="timetable-date" class="timetable-date-label"></span>
         </div>
-        <div id="feeding-cards" class="cards-container">
-          <!-- JS で描画 -->
+        <div id="timetable" class="timetable">
+          <div class="timetable-head">
+            <div class="tt-col-label">第一子</div>
+            <div class="tt-time-col"></div>
+            <div class="tt-col-label">第二子</div>
+          </div>
+          <div id="timetable-body" class="timetable-body"></div>
         </div>
-        <button class="add-btn" id="add-feeding-btn">＋ 授乳を追加</button>
       </section>
 
-      <!-- 排泄記録セクション -->
-      <section class="section" aria-label="排泄記録">
-        <div class="section-header">
-          <h2 class="section-title">🚼 排泄記録</h2>
-        </div>
-        <div id="excretion-cards" class="cards-container">
-          <!-- JS で描画 -->
-        </div>
-        <button class="add-btn" id="add-excretion-btn">＋ 排泄を追加</button>
-      </section>
-
-    </div><!-- /tab-records -->
-
-    <!-- ========== 統計タブ ========== -->
-    <div id="tab-stats" class="tab-content">
-
-      <!-- 期間選択ボタン -->
+      <!-- 期間統計 -->
       <div class="stats-period-bar">
         <button class="period-btn active" data-period="7">直近7日</button>
         <button class="period-btn" data-period="30">直近30日</button>
         <button class="period-btn" data-period="month">今月</button>
         <button class="period-btn" data-period="custom">任意期間</button>
       </div>
-
-      <!-- 任意期間入力（非表示デフォルト） -->
       <div id="custom-period" class="custom-period hidden">
         <div class="period-inputs">
           <label class="period-label">
@@ -146,154 +163,145 @@
         </div>
         <button class="search-btn" id="stats-search-btn">表示する</button>
       </div>
-
-      <!-- 統計ローディング -->
-      <div id="stats-loading" class="loading hidden" aria-busy="true">
+      <div id="stats-loading" class="loading hidden">
         <div class="loading-spinner"></div>
         <span>集計中...</span>
       </div>
 
-      <!-- 授乳統計 -->
-      <section class="section" aria-label="授乳統計">
-        <h2 class="section-title">🍼 授乳統計</h2>
-        <div class="stats-grid" id="feeding-stats">
-          <!-- JS で描画 -->
+      <!-- 2列の期間統計 -->
+      <div class="stats-children-grid">
+        <div class="stats-child-block">
+          <h3 class="stats-child-title child1-color">第一子</h3>
+          <h4 class="stats-sub-title">🍼 授乳</h4>
+          <div class="stats-grid" id="c1-feeding-stats"></div>
+          <h4 class="stats-sub-title">🚼 排泄</h4>
+          <div class="stats-grid" id="c1-excretion-stats"></div>
         </div>
-      </section>
-
-      <!-- 排泄統計 -->
-      <section class="section" aria-label="排泄統計">
-        <h2 class="section-title">🚼 排泄統計</h2>
-        <div class="stats-grid" id="excretion-stats">
-          <!-- JS で描画 -->
+        <div class="stats-child-block">
+          <h3 class="stats-child-title child2-color">第二子</h3>
+          <h4 class="stats-sub-title">🍼 授乳</h4>
+          <div class="stats-grid" id="c2-feeding-stats"></div>
+          <h4 class="stats-sub-title">🚼 排泄</h4>
+          <div class="stats-grid" id="c2-excretion-stats"></div>
         </div>
-      </section>
+      </div>
 
       <!-- グラフ -->
-      <section class="section" aria-label="グラフ">
+      <section class="section">
         <h2 class="section-title">📊 グラフ</h2>
         <div class="chart-card">
           <h3 class="chart-title">日別授乳回数</h3>
-          <div class="chart-wrapper">
-            <canvas id="chart-feeding-count"></canvas>
-          </div>
-        </div>
-        <div class="chart-card">
-          <h3 class="chart-title">日別ミルク量 (ml)</h3>
-          <div class="chart-wrapper">
-            <canvas id="chart-milk-amount"></canvas>
-          </div>
+          <div class="chart-wrapper"><canvas id="chart-feeding-count"></canvas></div>
         </div>
         <div class="chart-card">
           <h3 class="chart-title">日別排泄回数</h3>
-          <div class="chart-wrapper">
-            <canvas id="chart-excretion-count"></canvas>
-          </div>
+          <div class="chart-wrapper"><canvas id="chart-excretion-count"></canvas></div>
         </div>
       </section>
 
-    </div><!-- /tab-stats -->
+    </div><!-- /view-stats -->
 
   </main>
 
+  <!-- ===== 下部タブバー ===== -->
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-tab="records" aria-selected="true">
+      <span class="tab-label">📝 記録</span>
+    </button>
+    <button class="tab-btn" data-tab="stats" aria-selected="false">
+      <span class="tab-label">📊 統計</span>
+    </button>
+  </nav>
 
   <!-- ===== カードテンプレート ===== -->
 
-  <!-- 授乳カードテンプレート -->
   <template id="feeding-card-template">
     <article class="card feeding-card">
       <input type="hidden" class="record-id">
       <div class="card-header">
-        <span class="card-badge feeding-badge">🍼 授乳</span>
-        <div class="card-actions">
-          <button class="icon-btn edit-btn" title="カードにフォーカス" aria-label="編集">✏️</button>
-          <button class="icon-btn delete-btn" title="削除" aria-label="削除">🗑️</button>
-        </div>
-      </div>
-      <div class="card-body">
-
-        <div class="form-row">
-          <label class="form-label" for="">種類</label>
-          <select class="form-select feeding-type" aria-label="授乳の種類">
+        <!-- 1行目: 種類 + 量（ミルクのみ） -->
+        <div class="feeding-type-row">
+          <select class="form-select feeding-type" aria-label="種類">
             <option value="母乳">母乳</option>
             <option value="ミルク">ミルク</option>
           </select>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">開始日時</label>
-          <div class="input-with-btn">
-            <input type="datetime-local" step="1" class="form-input feeding-start" aria-label="開始日時">
-            <button class="now-btn start-now-btn" type="button">NOW</button>
+          <div class="milk-amount hidden">
+            <input type="number" class="breast-input feeding-amount"
+                   min="0" max="500" step="5" placeholder="0" aria-label="量(ml)">
+            <span class="breast-unit">ml</span>
           </div>
         </div>
-
-        <div class="form-row">
-          <label class="form-label">終了日時</label>
-          <div class="input-with-btn">
-            <input type="datetime-local" step="1" class="form-input feeding-end" aria-label="終了日時">
-            <button class="now-btn end-now-btn" type="button">NOW</button>
+        <button class="icon-btn delete-btn" aria-label="削除">🗑</button>
+      </div>
+      <div class="card-body">
+        <!-- 母乳: 左・右の開始/終了（各行にNOWボタン） -->
+        <div class="breast-times">
+          <div class="breast-side-row">
+            <span class="breast-label">左</span>
+            <div class="side-fields">
+              <div class="time-now-row">
+                <span class="time-label-sm">開始</span>
+                <input type="time" class="time-input feeding-left-start" aria-label="左 開始">
+                <button class="now-btn-sm feeding-left-start-now" type="button">NOW</button>
+              </div>
+              <div class="time-now-row">
+                <span class="time-label-sm">終了</span>
+                <input type="time" class="time-input feeding-left-end" aria-label="左 終了">
+                <button class="now-btn-sm feeding-left-end-now" type="button">NOW</button>
+              </div>
+            </div>
+          </div>
+          <div class="breast-side-row">
+            <span class="breast-label">右</span>
+            <div class="side-fields">
+              <div class="time-now-row">
+                <span class="time-label-sm">開始</span>
+                <input type="time" class="time-input feeding-right-start" aria-label="右 開始">
+                <button class="now-btn-sm feeding-right-start-now" type="button">NOW</button>
+              </div>
+              <div class="time-now-row">
+                <span class="time-label-sm">終了</span>
+                <input type="time" class="time-input feeding-right-end" aria-label="右 終了">
+                <button class="now-btn-sm feeding-right-end-now" type="button">NOW</button>
+              </div>
+            </div>
           </div>
         </div>
-
-        <div class="form-row duration-row">
-          <label class="form-label">所要時間</label>
-          <span class="duration-display" aria-live="polite">--分</span>
-        </div>
-
-        <div class="form-row milk-amount-row">
-          <label class="form-label">量</label>
-          <div class="amount-input-row">
-            <input type="number" class="form-input feeding-amount"
-                   min="0" max="500" step="5" placeholder="0" aria-label="ミルク量(ml)">
-            <span class="unit-label">ml</span>
+        <!-- ミルク: 開始/終了（各行にNOWボタン） -->
+        <div class="milk-times hidden">
+          <div class="time-now-row">
+            <span class="time-label-sm">開始</span>
+            <input type="time" class="time-input feeding-milk-start" aria-label="開始">
+            <button class="now-btn-sm feeding-milk-start-now" type="button">NOW</button>
+          </div>
+          <div class="time-now-row">
+            <span class="time-label-sm">終了</span>
+            <input type="time" class="time-input feeding-milk-end" aria-label="終了">
+            <button class="now-btn-sm feeding-milk-end-now" type="button">NOW</button>
           </div>
         </div>
-
-        <div class="form-row">
-          <label class="form-label">メモ</label>
-          <input type="text" class="form-input feeding-memo" placeholder="メモを入力" aria-label="メモ">
-        </div>
-
+        <input type="text" class="form-input feeding-memo" placeholder="メモ" aria-label="メモ">
       </div>
     </article>
   </template>
 
-  <!-- 排泄カードテンプレート -->
   <template id="excretion-card-template">
     <article class="card excretion-card">
       <input type="hidden" class="record-id">
       <div class="card-header">
-        <span class="card-badge excretion-badge">🚼 排泄</span>
-        <div class="card-actions">
-          <button class="icon-btn edit-btn" title="カードにフォーカス" aria-label="編集">✏️</button>
-          <button class="icon-btn delete-btn" title="削除" aria-label="削除">🗑️</button>
+        <div class="card-time-row">
+          <input type="time" class="time-input excretion-time" aria-label="時刻">
+          <button class="now-btn excretion-now-btn" type="button">NOW</button>
         </div>
+        <button class="icon-btn delete-btn" aria-label="削除">🗑</button>
       </div>
       <div class="card-body">
-
-        <div class="form-row">
-          <label class="form-label">種別</label>
-          <select class="form-select excretion-type" aria-label="排泄の種別">
-            <option value="おしっこ">おしっこ</option>
-            <option value="うんち">うんち</option>
-            <option value="両方">両方</option>
-          </select>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">時刻</label>
-          <div class="input-with-btn">
-            <input type="datetime-local" class="form-input excretion-time" aria-label="時刻">
-            <button class="now-btn excretion-now-btn" type="button">NOW</button>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">メモ</label>
-          <input type="text" class="form-input excretion-memo" placeholder="メモを入力" aria-label="メモ">
-        </div>
-
+        <select class="form-select excretion-type" aria-label="種別">
+          <option value="おしっこ">おしっこ 💧</option>
+          <option value="うんち">うんち 💩</option>
+          <option value="両方">両方</option>
+        </select>
+        <input type="text" class="form-input excretion-memo" placeholder="メモ" aria-label="メモ">
       </div>
     </article>
   </template>
