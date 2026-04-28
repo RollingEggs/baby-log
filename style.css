@@ -812,10 +812,14 @@ input, select { font-family: inherit; font-size: inherit; }
    デスクトップ対応
    ============================================================ */
 @media (min-width: 600px) {
-  .app-main, .sticky-top, .tab-bar, .app-header {
+  .sticky-top, .tab-bar, .app-header {
     max-width: 600px;
     left: 50%;
     transform: translateX(-50%);
+  }
+  .app-main {
+    max-width: 600px;
+    margin: 0 auto;
   }
   .settings-modal {
     border-radius: var(--radius-lg);
