@@ -75,18 +75,19 @@ function localDateString(date) {
 }
 
 /**
- * Date オブジェクトを datetime-local 形式 (YYYY-MM-DDTHH:mm) に変換
+ * Date オブジェクトを datetime-local 形式 (YYYY-MM-DDTHH:mm:ss) に変換
  */
 function toDatetimeLocal(date) {
   if (!date) return '';
   const d = date instanceof Date ? date : new Date(date);
   if (isNaN(d.getTime())) return '';
-  const y = d.getFullYear();
+  const y  = d.getFullYear();
   const mo = String(d.getMonth() + 1).padStart(2, '0');
   const da = String(d.getDate()).padStart(2, '0');
   const h  = String(d.getHours()).padStart(2, '0');
   const mi = String(d.getMinutes()).padStart(2, '0');
-  return `${y}-${mo}-${da}T${h}:${mi}`;
+  const se = String(d.getSeconds()).padStart(2, '0');
+  return `${y}-${mo}-${da}T${h}:${mi}:${se}`;
 }
 
 /**
@@ -96,20 +97,22 @@ function toDatetimeLocal(date) {
 function defaultDatetimeForDate(dateStr) {
   const now = new Date();
   const [y, m, d] = dateStr.split('-').map(Number);
-  const dt = new Date(y, m - 1, d, now.getHours(), now.getMinutes());
+  const dt = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
   return toDatetimeLocal(dt);
 }
 
 /**
- * 分数を読みやすい形式にフォーマット ("X時間Y分" or "Y分")
+ * 秒数を "X分Y秒" 形式でフォーマット
  */
-function formatDuration(minutes) {
-  if (minutes === null || minutes === undefined || isNaN(minutes)) return '--分';
-  const m = Math.round(minutes);
-  if (m < 60) return `${m}分`;
-  const h = Math.floor(m / 60);
-  const rem = m % 60;
-  return rem > 0 ? `${h}時間${rem}分` : `${h}時間`;
+function formatDuration(seconds) {
+  if (seconds === null || seconds === undefined || isNaN(seconds)) return '--';
+  const total = Math.round(seconds);
+  if (total < 60) return `${total}秒`;
+  const h   = Math.floor(total / 3600);
+  const m   = Math.floor((total % 3600) / 60);
+  const s   = total % 60;
+  if (h > 0) return s > 0 ? `${h}時間${m}分${s}秒` : `${h}時間${m}分`;
+  return s > 0 ? `${m}分${s}秒` : `${m}分`;
 }
 
 /**
@@ -468,16 +471,14 @@ function attachFeedingCardEvents(card) {
 function updateFeedingDuration(card) {
   const startVal = card.querySelector('.feeding-start').value;
   const endVal   = card.querySelector('.feeding-end').value;
-  let durationMin = null;
+  let durationSec = null;
 
   if (startVal && endVal) {
     const diffMs = new Date(endVal) - new Date(startVal);
-    if (diffMs > 0) {
-      durationMin = Math.round(diffMs / 60000);
-    }
+    if (diffMs > 0) durationSec = Math.round(diffMs / 1000);
   }
 
-  card.querySelector('.duration-display').textContent = formatDuration(durationMin);
+  card.querySelector('.duration-display').textContent = formatDuration(durationSec);
 }
 
 /**
@@ -495,10 +496,11 @@ function collectFeedingData(card) {
   const startVal = card.querySelector('.feeding-start').value;
   const endVal   = card.querySelector('.feeding-end').value;
 
+  // durationMin は秒精度で小数保持 (例: 5分30秒 → 5.5)
   let durationMin = null;
   if (startVal && endVal) {
     const diffMs = new Date(endVal) - new Date(startVal);
-    if (diffMs > 0) durationMin = Math.round(diffMs / 60000);
+    if (diffMs > 0) durationMin = diffMs / 60000;
   }
 
   const amountRaw = card.querySelector('.feeding-amount').value;
