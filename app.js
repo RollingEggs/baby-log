@@ -485,8 +485,8 @@ function updateFeedingDuration(card) {
  * 授乳種類に応じてミルク量欄の表示/非表示を切り替える
  */
 function syncMilkAmountVisibility(card) {
-  const isBottle = card.querySelector('.feeding-type').value === 'ミルク';
-  card.querySelector('.milk-amount-row').style.display = isBottle ? '' : 'none';
+  // 授乳種別に関わらず常に表示
+  card.querySelector('.milk-amount-row').style.display = '';
 }
 
 /**
