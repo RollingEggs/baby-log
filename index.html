@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#FF9AA2">
+  <title>育児記録</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- ===== ヘッダー ===== -->
+  <header class="app-header">
+    <h1 class="app-title">🍼 育児記録</h1>
+    <div id="save-status" class="save-status" aria-live="polite"></div>
+  </header>
+
+  <!-- ===== メインコンテンツ ===== -->
+  <main class="app-main">
+
+    <!-- ========== 記録タブ ========== -->
+    <div id="tab-records" class="tab-content active">
+
+      <!-- 日付ナビゲーション -->
+      <div class="date-nav-wrapper">
+        <div class="date-nav-scroll" id="date-nav-scroll" role="tablist" aria-label="日付選択">
+          <!-- JS で描画 -->
+        </div>
+        <button class="today-btn" id="today-btn" aria-label="今日に戻る">今日</button>
+      </div>
+
+      <!-- ローディング表示 -->
+      <div id="loading" class="loading hidden" aria-busy="true" aria-label="読み込み中">
+        <div class="loading-spinner"></div>
+        <span>読み込み中...</span>
+      </div>
+
+      <!-- エラーメッセージ -->
+      <div id="error-msg" class="error-msg hidden" role="alert"></div>
+
+      <!-- 授乳記録セクション -->
+      <section class="section" aria-label="授乳記録">
+        <div class="section-header">
+          <h2 class="section-title">🍼 授乳記録</h2>
+        </div>
+        <div id="feeding-cards" class="cards-container">
+          <!-- JS で描画 -->
+        </div>
+        <button class="add-btn" id="add-feeding-btn">＋ 授乳を追加</button>
+      </section>
+
+      <!-- 排泄記録セクション -->
+      <section class="section" aria-label="排泄記録">
+        <div class="section-header">
+          <h2 class="section-title">🚼 排泄記録</h2>
+        </div>
+        <div id="excretion-cards" class="cards-container">
+          <!-- JS で描画 -->
+        </div>
+        <button class="add-btn" id="add-excretion-btn">＋ 排泄を追加</button>
+      </section>
+
+    </div><!-- /tab-records -->
+
+    <!-- ========== 統計タブ ========== -->
+    <div id="tab-stats" class="tab-content">
+
+      <!-- 期間選択ボタン -->
+      <div class="stats-period-bar">
+        <button class="period-btn active" data-period="7">直近7日</button>
+        <button class="period-btn" data-period="30">直近30日</button>
+        <button class="period-btn" data-period="month">今月</button>
+        <button class="period-btn" data-period="custom">任意期間</button>
+      </div>
+
+      <!-- 任意期間入力（非表示デフォルト） -->
+      <div id="custom-period" class="custom-period hidden">
+        <div class="period-inputs">
+          <label class="period-label">
+            <span>開始日</span>
+            <input type="date" id="stats-from" class="period-input">
+          </label>
+          <label class="period-label">
+            <span>終了日</span>
+            <input type="date" id="stats-to" class="period-input">
+          </label>
+        </div>
+        <button class="search-btn" id="stats-search-btn">表示する</button>
+      </div>
+
+      <!-- 統計ローディング -->
+      <div id="stats-loading" class="loading hidden" aria-busy="true">
+        <div class="loading-spinner"></div>
+        <span>集計中...</span>
+      </div>
+
+      <!-- 授乳統計 -->
+      <section class="section" aria-label="授乳統計">
+        <h2 class="section-title">🍼 授乳統計</h2>
+        <div class="stats-grid" id="feeding-stats">
+          <!-- JS で描画 -->
+        </div>
+      </section>
+
+      <!-- 排泄統計 -->
+      <section class="section" aria-label="排泄統計">
+        <h2 class="section-title">🚼 排泄統計</h2>
+        <div class="stats-grid" id="excretion-stats">
+          <!-- JS で描画 -->
+        </div>
+      </section>
+
+      <!-- グラフ -->
+      <section class="section" aria-label="グラフ">
+        <h2 class="section-title">📊 グラフ</h2>
+        <div class="chart-card">
+          <h3 class="chart-title">日別授乳回数</h3>
+          <div class="chart-wrapper">
+            <canvas id="chart-feeding-count"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3 class="chart-title">日別ミルク量 (ml)</h3>
+          <div class="chart-wrapper">
+            <canvas id="chart-milk-amount"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3 class="chart-title">日別排泄回数</h3>
+          <div class="chart-wrapper">
+            <canvas id="chart-excretion-count"></canvas>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /tab-stats -->
+
+  </main>
+
+  <!-- ===== 下部タブバー ===== -->
+  <nav class="tab-bar" role="navigation" aria-label="メインナビゲーション">
+    <button class="tab-btn active" data-tab="records" aria-selected="true">
+      <span class="tab-icon" aria-hidden="true">📝</span>
+      <span class="tab-label">記録</span>
+    </button>
+    <button class="tab-btn" data-tab="stats" aria-selected="false">
+      <span class="tab-icon" aria-hidden="true">📊</span>
+      <span class="tab-label">統計</span>
+    </button>
+  </nav>
+
+  <!-- ===== カードテンプレート ===== -->
+
+  <!-- 授乳カードテンプレート -->
+  <template id="feeding-card-template">
+    <article class="card feeding-card">
+      <input type="hidden" class="record-id">
+      <div class="card-header">
+        <span class="card-badge feeding-badge">🍼 授乳</span>
+        <div class="card-actions">
+          <button class="icon-btn edit-btn" title="カードにフォーカス" aria-label="編集">✏️</button>
+          <button class="icon-btn delete-btn" title="削除" aria-label="削除">🗑️</button>
+        </div>
+      </div>
+      <div class="card-body">
+
+        <div class="form-row">
+          <label class="form-label" for="">種類</label>
+          <select class="form-select feeding-type" aria-label="授乳の種類">
+            <option value="母乳">母乳</option>
+            <option value="ミルク">ミルク</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">開始日時</label>
+          <div class="input-with-btn">
+            <input type="datetime-local" class="form-input feeding-start" aria-label="開始日時">
+            <button class="now-btn start-now-btn" type="button">NOW</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">終了日時</label>
+          <div class="input-with-btn">
+            <input type="datetime-local" class="form-input feeding-end" aria-label="終了日時">
+            <button class="now-btn end-now-btn" type="button">NOW</button>
+          </div>
+        </div>
+
+        <div class="form-row duration-row">
+          <label class="form-label">所要時間</label>
+          <span class="duration-display" aria-live="polite">--分</span>
+        </div>
+
+        <div class="form-row milk-amount-row">
+          <label class="form-label">ミルク量</label>
+          <div class="amount-input-row">
+            <input type="number" class="form-input feeding-amount"
+                   min="0" max="500" step="5" placeholder="0" aria-label="ミルク量(ml)">
+            <span class="unit-label">ml</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">メモ</label>
+          <input type="text" class="form-input feeding-memo" placeholder="メモを入力" aria-label="メモ">
+        </div>
+
+      </div>
+    </article>
+  </template>
+
+  <!-- 排泄カードテンプレート -->
+  <template id="excretion-card-template">
+    <article class="card excretion-card">
+      <input type="hidden" class="record-id">
+      <div class="card-header">
+        <span class="card-badge excretion-badge">🚼 排泄</span>
+        <div class="card-actions">
+          <button class="icon-btn edit-btn" title="カードにフォーカス" aria-label="編集">✏️</button>
+          <button class="icon-btn delete-btn" title="削除" aria-label="削除">🗑️</button>
+        </div>
+      </div>
+      <div class="card-body">
+
+        <div class="form-row">
+          <label class="form-label">種別</label>
+          <select class="form-select excretion-type" aria-label="排泄の種別">
+            <option value="おしっこ">おしっこ</option>
+            <option value="うんち">うんち</option>
+            <option value="両方">両方</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">時刻</label>
+          <div class="input-with-btn">
+            <input type="datetime-local" class="form-input excretion-time" aria-label="時刻">
+            <button class="now-btn excretion-now-btn" type="button">NOW</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">メモ</label>
+          <input type="text" class="form-input excretion-memo" placeholder="メモを入力" aria-label="メモ">
+        </div>
+
+      </div>
+    </article>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
