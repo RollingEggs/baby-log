@@ -582,7 +582,9 @@ input, select { font-family: inherit; font-size: inherit; }
   flex-shrink: 0;
 }
 
-.timetable-body { }
+.timetable-body {
+  overflow: hidden;
+}
 
 .timetable-empty {
   padding: 24px;
@@ -591,49 +593,81 @@ input, select { font-family: inherit; font-size: inherit; }
   font-size: 0.85rem;
 }
 
-.tt-row {
+/* ---- 視覚タイムライン ---- */
+.vt-wrapper {
   display: flex;
-  min-height: 48px;
-  border-bottom: 1px solid var(--c-border);
+  position: relative;
+  width: 100%;
 }
-.tt-row:last-child { border-bottom: none; }
 
-.tt-events {
+/* グリッドライン */
+.vt-gridline {
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  background: var(--c-border);
+  z-index: 0;
+}
+
+/* 左右カラム */
+.vt-col {
   flex: 1;
   min-width: 0;
-  padding: 4px 3px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+  position: relative;
 }
 
-.tt-time-label {
+/* 時刻軸 */
+.vt-axis {
   width: 40px;
   flex-shrink: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 6px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--c-text-sub);
+  position: relative;
+  background: #FAFAFA;
   border-left: 1px solid var(--c-border);
   border-right: 1px solid var(--c-border);
-  background: #FAFAFA;
 }
 
-.tt-event {
-  border-radius: 6px;
-  padding: 3px 5px;
-  font-size: 0.68rem;
-  line-height: 1.4;
-  font-weight: 600;
+.vt-hour-label {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--c-text-sub);
+  transform: translateY(-50%);
+  line-height: 1;
 }
-.tt-event.tt-feeding   { background: #FFE8EA; color: #C0394A; }
-.tt-event.tt-excretion { background: #E4F4EC; color: #2A7A4F; }
 
-.tt-event-time  { display: block; font-weight: 800; font-size: 0.72rem; }
-.tt-event-label { display: block; }
+/* イベントブロック */
+.vt-event {
+  position: absolute;
+  left: 3px; right: 3px;
+  border-radius: 5px;
+  padding: 2px 5px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 1;
+  border-left: 3px solid transparent;
+  box-sizing: border-box;
+}
+.vt-feeding   { background: #FFE8EA; color: #C0394A; border-left-color: #FF9AA2; }
+.vt-excretion { background: #E4F4EC; color: #2A7A4F; border-left-color: #B5EAD7; }
+
+.vt-ev-name {
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vt-ev-time {
+  font-size: 0.58rem;
+  line-height: 1.2;
+  opacity: 0.85;
+  white-space: nowrap;
+}
 
 /* ============================================================
    期間統計
