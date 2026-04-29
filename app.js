@@ -204,6 +204,9 @@ async function selectDate(dateStr) {
     btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
   });
   await loadRecords(dateStr);
+  if (document.getElementById('view-stats').classList.contains('active')) {
+    loadTimeline();
+  }
 }
 
 /* ============================================================
@@ -542,7 +545,7 @@ function initTabs() {
       // コンテンツタブは記録ビューのみ表示
       document.getElementById('content-tabs').classList.toggle('hidden', tab !== 'records');
 
-      if (tab === 'stats') loadStats();
+      if (tab === 'stats') { loadTimeline(); loadStats(); }
     });
   });
 }
@@ -601,123 +604,183 @@ async function loadStats() {
   const period = resolveStatsPeriod();
   if (!period) return;
   setStatsLoading(true);
-
-  const [timelineResult, statsResult] = await Promise.allSettled([
-    apiFetchRecords(state.currentDate),
-    apiFetchStats(period.from, period.to),
-  ]);
-
-  if (timelineResult.status === 'fulfilled') {
-    renderTimetable(timelineResult.value);
-  } else {
-    console.error('loadStats (timeline):', timelineResult.reason);
-    renderTimetable([]);
+  try {
+    const statsData = await apiFetchStats(period.from, period.to);
+    renderStatsNumbers(statsData);
+    renderCharts(statsData);
+  } catch (err) {
+    console.error('loadStats:', err);
+    showError(`統計の取得に失敗しました。\n${err.message}`);
+  } finally {
+    setStatsLoading(false);
   }
-
-  if (statsResult.status === 'fulfilled') {
-    renderStatsNumbers(statsResult.value);
-    renderCharts(statsResult.value);
-  } else {
-    console.error('loadStats (stats):', statsResult.reason);
-    showError(`統計の取得に失敗しました。\n${statsResult.reason.message}`);
-  }
-
-  setStatsLoading(false);
 }
 
 /* ============================================================
-   視覚タイムライン
+   タイムライン（横スクロール 11日）
    ============================================================ */
 
-const VT_HOUR_H = 40; // 1時間あたりのピクセル高さ
+const TL_HEAD_H = 28; // 日付ヘッダー高さ
+const TL_PAD    = 10; // イベントエリアの上下パディング
 
-function timeToY(timeStr) {
-  if (!timeStr || !timeStr.includes(':')) return null;
-  const [h, m] = timeStr.split(':').map(Number);
-  if (isNaN(h) || isNaN(m)) return null;
-  return (h * 60 + m) / 60 * VT_HOUR_H;
+function minutesBetween(startStr, endStr) {
+  if (!startStr || !endStr || !startStr.includes(':') || !endStr.includes(':')) return 0;
+  const [sh, sm] = startStr.split(':').map(Number);
+  const [eh, em] = endStr.split(':').map(Number);
+  const d = (eh * 60 + em) - (sh * 60 + sm);
+  return d > 0 ? d : 0;
 }
 
-function vtEventLabel(r) {
-  if (r.category === 'feeding') {
-    return r.type === 'ミルク'
-      ? (r.amount != null ? `ミルク ${r.amount}ml` : 'ミルク')
-      : '母乳';
+async function loadTimeline() {
+  const center = state.currentDate;
+  const dates = Array.from({length: 11}, (_, i) => {
+    const d = new Date(center + 'T00:00:00');
+    d.setDate(d.getDate() + i - 5);
+    return localDateString(d);
+  });
+  const recordsByDate = {};
+  try {
+    const results = await Promise.all(dates.map((d) => apiFetchRecords(d)));
+    dates.forEach((d, i) => { recordsByDate[d] = results[i] || []; });
+  } catch (err) {
+    console.error('loadTimeline:', err);
+    dates.forEach((d) => { recordsByDate[d] = []; });
   }
-  return r.type || '排泄';
+  renderTimeline(dates, recordsByDate);
 }
 
-function renderTimetable(records) {
-  const dateLabel = document.getElementById('timetable-date');
-  if (dateLabel) dateLabel.textContent = state.currentDate.replace(/-/g, '/');
+function renderTimeline(dates, recordsByDate) {
+  const scroll = document.getElementById('timetable-body');
+  scroll.innerHTML = '';
 
-  const body = document.getElementById('timetable-body');
-  body.innerHTML = '';
+  const containerH = scroll.clientHeight;
+  const evAreaH    = containerH - TL_HEAD_H;
+  const hourH      = Math.max(10, (evAreaH - TL_PAD * 2) / 24);
+  const DAYS_JA    = ['日', '月', '火', '水', '木', '金', '土'];
+  const today      = getTodayString();
 
-  if (records.length === 0) {
-    body.innerHTML = '<div class="timetable-empty">この日のデータがありません</div>';
-    return;
+  function timeToY(t) {
+    if (!t || !t.includes(':')) return null;
+    const [h, m] = t.split(':').map(Number);
+    if (isNaN(h) || isNaN(m)) return null;
+    return TL_PAD + (h * 60 + m) / 60 * hourH;
   }
 
-  const totalH = VT_HOUR_H * 24;
+  const outer = document.createElement('div');
+  outer.className = 'tl-outer';
 
-  const wrapper = document.createElement('div');
-  wrapper.className = 'vt-wrapper';
-  wrapper.style.height = totalH + 'px';
-
-  // グリッドライン（2時間ごと）
-  for (let h = 0; h <= 24; h += 2) {
-    const line = document.createElement('div');
-    line.className = 'vt-gridline';
-    line.style.top = (h * VT_HOUR_H) + 'px';
-    wrapper.appendChild(line);
-  }
-
-  const col1 = document.createElement('div');
-  col1.className = 'vt-col';
-
+  // 時刻軸（左固定）
   const axis = document.createElement('div');
-  axis.className = 'vt-axis';
+  axis.className = 'tl-axis';
+  axis.style.height = containerH + 'px';
+
+  const axHead = document.createElement('div');
+  axHead.className = 'tl-ax-head';
+  axHead.style.height = TL_HEAD_H + 'px';
+  axis.appendChild(axHead);
+
   for (let h = 0; h <= 24; h += 2) {
     const lbl = document.createElement('div');
-    lbl.className = 'vt-hour-label';
-    lbl.style.top = (h * VT_HOUR_H) + 'px';
-    lbl.textContent = String(h).padStart(2, '0') + ':00';
+    lbl.className = 'tl-ax-label';
+    lbl.style.top = (TL_HEAD_H + TL_PAD + h * hourH) + 'px';
+    lbl.textContent = String(h).padStart(2, '0');
     axis.appendChild(lbl);
   }
+  outer.appendChild(axis);
 
-  const col2 = document.createElement('div');
-  col2.className = 'vt-col';
+  // 日付カラム（11日分）
+  dates.forEach((dateStr) => {
+    const recs     = recordsByDate[dateStr] || [];
+    const dt       = new Date(dateStr + 'T00:00:00');
+    const isCenter = dateStr === state.currentDate;
+    const isToday  = dateStr === today;
 
-  function addEvents(col, events) {
-    events.forEach((r) => {
-      const y = timeToY(r.start);
-      if (y === null) return;
-      const endY  = timeToY(r.end);
-      const minH  = 24;
-      const evH   = (endY !== null && endY > y) ? Math.max(endY - y, minH) : minH;
+    const col = document.createElement('div');
+    col.className = 'tl-day' + (isCenter ? ' tl-center' : '');
+    col.style.height = containerH + 'px';
 
-      const ev = document.createElement('div');
-      ev.className = 'vt-event ' + (r.category === 'feeding' ? 'vt-feeding' : 'vt-excretion');
-      ev.style.top    = y + 'px';
-      ev.style.height = evH + 'px';
+    // 日付ヘッダー
+    const head = document.createElement('div');
+    head.className = 'tl-dh' + (isToday ? ' tl-today' : '');
+    head.style.height = TL_HEAD_H + 'px';
+    head.innerHTML =
+      `<span class="tl-dh-date">${dt.getMonth() + 1}/${dt.getDate()}</span>` +
+      `<span class="tl-dh-wd">${DAYS_JA[dt.getDay()]}</span>`;
+    col.appendChild(head);
 
-      const timeStr = r.end ? `${r.start} - ${r.end}` : (r.start || '');
-      ev.innerHTML =
-        `<span class="vt-ev-name">${vtEventLabel(r)}</span>` +
-        `<span class="vt-ev-time">${timeStr}</span>`;
+    // イベントエリア
+    const ea = document.createElement('div');
+    ea.className = 'tl-ea';
+    ea.style.height = evAreaH + 'px';
 
-      col.appendChild(ev);
-    });
-  }
+    for (let h = 0; h <= 24; h += 2) {
+      const gl = document.createElement('div');
+      gl.className = 'tl-gl';
+      gl.style.top = (TL_PAD + h * hourH) + 'px';
+      ea.appendChild(gl);
+    }
 
-  addEvents(col1, records.filter((r) => r.child == 1));
-  addEvents(col2, records.filter((r) => r.child == 2));
+    const cr = document.createElement('div');
+    cr.className = 'tl-cr';
 
-  wrapper.appendChild(col1);
-  wrapper.appendChild(axis);
-  wrapper.appendChild(col2);
-  body.appendChild(wrapper);
+    function buildChildCol(childNum) {
+      const cc = document.createElement('div');
+      cc.className = 'tl-cc';
+      recs.filter((r) => r.child == childNum).forEach((r) => {
+        const y = timeToY(r.start);
+        if (y === null) return;
+        const ev = document.createElement('div');
+        let text = '';
+        if (r.category === 'feeding') {
+          if (r.type === 'ミルク') {
+            ev.className = 'tl-ev tl-milk';
+            const p = [];
+            if (r.start) p.push(r.start);
+            if (r.amount != null) p.push(r.amount + 'ml');
+            if (r.memo) p.push(r.memo);
+            text = p.join(' ');
+          } else {
+            ev.className = 'tl-ev tl-breast';
+            const lm = minutesBetween(r.start, r.end);
+            const rm = minutesBetween(r.rightStart, r.rightEnd);
+            const p = [];
+            if (lm) p.push('左' + lm + '分');
+            if (rm) p.push('右' + rm + '分');
+            if (r.memo) p.push(r.memo);
+            text = p.join(' ') || '母乳';
+          }
+        } else {
+          ev.className = 'tl-ev tl-excr';
+          const icon = r.type === 'うんち' ? '💩' : r.type === '両方' ? '💧💩' : '💧';
+          text = icon + (r.memo ? ' ' + r.memo : '');
+        }
+        ev.style.top = y + 'px';
+        ev.textContent = text;
+        cc.appendChild(ev);
+      });
+      return cc;
+    }
+
+    cr.appendChild(buildChildCol(1));
+    const sep = document.createElement('div');
+    sep.className = 'tl-sep';
+    cr.appendChild(sep);
+    cr.appendChild(buildChildCol(2));
+    ea.appendChild(cr);
+    col.appendChild(ea);
+    outer.appendChild(col);
+  });
+
+  scroll.appendChild(outer);
+
+  // 選択日付の列を中央にスクロール
+  requestAnimationFrame(() => {
+    const axW    = axis.offsetWidth || 34;
+    const center = outer.querySelector('.tl-center');
+    if (!center) return;
+    const left = center.offsetLeft - axW - Math.max(0, (scroll.clientWidth - axW - center.offsetWidth) / 2);
+    scroll.scrollLeft = Math.max(0, left);
+  });
 }
 
 /* ============================================================

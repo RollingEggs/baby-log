@@ -588,61 +588,90 @@ input, select { font-family: inherit; font-size: inherit; }
 }
 
 /* ============================================================
-   タイムライン（統計）
+   タイムライン（横スクロール 11日）
    ============================================================ */
-.timetable-date-label {
-  font-size: 0.8rem;
-  color: var(--c-text-sub);
-  font-weight: 600;
-}
+.tl-section { margin: 8px 0 14px; padding: 0 10px; }
 
-.timetable {
+.tl-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  /* 24時間が縦に収まる高さ */
+  height: calc(100dvh - var(--header-h) - var(--date-nav-h) - var(--content-tab-h) - var(--tabbar-h) - 56px);
+  min-height: 280px;
   border: 1px solid var(--c-border);
   border-radius: var(--radius-md);
-  overflow: hidden;
   background: var(--c-card);
 }
 
-.timetable-head {
-  display: flex;
-  background: #FFF0F2;
-  border-bottom: 2px solid var(--c-border);
+.tl-outer {
+  display: inline-flex;
+  min-width: 100%;
+  height: 100%;
 }
 
-.tt-col-label {
-  flex: 1;
+/* 時刻軸（左固定） */
+.tl-axis {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  flex-shrink: 0;
+  width: 34px;
+  background: var(--c-card);
+  border-right: 2px solid var(--c-border);
+}
+
+.tl-ax-head {
+  background: #FAFAFA;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.tl-ax-label {
+  position: absolute;
+  left: 0; right: 0;
   text-align: center;
-  font-size: 0.78rem;
-  font-weight: 800;
-  padding: 8px 4px;
-  color: var(--c-text);
+  font-size: 0.48rem;
+  font-weight: 700;
+  color: var(--c-text-sub);
+  transform: translateY(-50%);
+  line-height: 1;
 }
 
-.tt-time-col {
-  width: 40px;
+/* 日付カラム */
+.tl-day {
+  flex-shrink: 0;
+  width: 100px;
+  border-right: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+}
+.tl-day.tl-center { background: rgba(255,154,162,0.04); }
+.tl-day.tl-center .tl-dh { background: #FFE8EA; }
+
+.tl-dh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: #FAFAFA;
+  border-bottom: 1px solid var(--c-border);
   flex-shrink: 0;
 }
+.tl-dh.tl-today .tl-dh-date { color: var(--c-primary); }
+.tl-dh-date { font-size: 0.7rem; font-weight: 800; color: var(--c-text); }
+.tl-dh-wd   { font-size: 0.58rem; color: var(--c-text-sub); }
+.tl-day.tl-center .tl-dh-date,
+.tl-day.tl-center .tl-dh-wd  { color: #C0394A; }
 
-.timetable-body {
+/* イベントエリア */
+.tl-ea {
+  position: relative;
+  flex: 1;
   overflow: hidden;
 }
 
-.timetable-empty {
-  padding: 24px;
-  text-align: center;
-  color: var(--c-text-sub);
-  font-size: 0.85rem;
-}
-
-/* ---- 視覚タイムライン ---- */
-.vt-wrapper {
-  display: flex;
-  position: relative;
-  width: 100%;
-}
-
-/* グリッドライン */
-.vt-gridline {
+.tl-gl {
   position: absolute;
   left: 0; right: 0;
   height: 1px;
@@ -650,65 +679,46 @@ input, select { font-family: inherit; font-size: inherit; }
   z-index: 0;
 }
 
-/* 左右カラム */
-.vt-col {
-  flex: 1;
-  min-width: 0;
-  position: relative;
-}
-
-/* 時刻軸 */
-.vt-axis {
-  width: 40px;
-  flex-shrink: 0;
-  position: relative;
-  background: #FAFAFA;
-  border-left: 1px solid var(--c-border);
-  border-right: 1px solid var(--c-border);
-}
-
-.vt-hour-label {
+/* 第一子・第二子の横並び */
+.tl-cr {
   position: absolute;
-  width: 100%;
-  text-align: center;
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: var(--c-text-sub);
-  transform: translateY(-50%);
-  line-height: 1;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+}
+
+.tl-cc {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tl-sep {
+  width: 1px;
+  background: var(--c-border);
+  flex-shrink: 0;
 }
 
 /* イベントブロック */
-.vt-event {
+.tl-ev {
   position: absolute;
-  left: 3px; right: 3px;
-  border-radius: 5px;
-  padding: 2px 5px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  z-index: 1;
-  border-left: 3px solid transparent;
-  box-sizing: border-box;
-}
-.vt-feeding   { background: #FFE8EA; color: #C0394A; border-left-color: #FF9AA2; }
-.vt-excretion { background: #E4F4EC; color: #2A7A4F; border-left-color: #B5EAD7; }
-
-.vt-ev-name {
-  font-size: 0.65rem;
-  font-weight: 700;
-  line-height: 1.2;
+  left: 1px; right: 1px;
+  min-height: 11px;
+  border-radius: 3px;
+  padding: 1px 2px;
+  font-size: 0.5rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  border-left: 2px solid transparent;
+  line-height: 1.3;
+  display: flex;
+  align-items: center;
+  z-index: 1;
 }
-.vt-ev-time {
-  font-size: 0.58rem;
-  line-height: 1.2;
-  opacity: 0.85;
-  white-space: nowrap;
-}
+.tl-breast { background: #FFE8EA; color: #C0394A; border-left-color: #FF9AA2; }
+.tl-milk   { background: #FFF3CD; color: #7A5A00; border-left-color: #FFD166; }
+.tl-excr   { background: #E4F4EC; color: #2A7A4F; border-left-color: #B5EAD7; }
 
 /* ============================================================
    期間統計
