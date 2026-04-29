@@ -562,20 +562,28 @@ async function loadStats() {
   const period = resolveStatsPeriod();
   if (!period) return;
   setStatsLoading(true);
-  try {
-    const [statsData, dayRecords] = await Promise.all([
-      apiFetchStats(period.from, period.to),
-      apiFetchRecords(state.currentDate),
-    ]);
-    renderTimetable(dayRecords);
-    renderStatsNumbers(statsData);
-    renderCharts(statsData);
-  } catch (err) {
-    console.error('loadStats:', err);
-    showError(`統計の取得に失敗しました。\n${err.message}`);
-  } finally {
-    setStatsLoading(false);
+
+  const [timelineResult, statsResult] = await Promise.allSettled([
+    apiFetchRecords(state.currentDate),
+    apiFetchStats(period.from, period.to),
+  ]);
+
+  if (timelineResult.status === 'fulfilled') {
+    renderTimetable(timelineResult.value);
+  } else {
+    console.error('loadStats (timeline):', timelineResult.reason);
+    renderTimetable([]);
   }
+
+  if (statsResult.status === 'fulfilled') {
+    renderStatsNumbers(statsResult.value);
+    renderCharts(statsResult.value);
+  } else {
+    console.error('loadStats (stats):', statsResult.reason);
+    showError(`統計の取得に失敗しました。\n${statsResult.reason.message}`);
+  }
+
+  setStatsLoading(false);
 }
 
 /* ============================================================
