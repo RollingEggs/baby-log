@@ -346,6 +346,20 @@ input, select { font-family: inherit; font-size: inherit; }
 }
 .icon-btn:hover { background: var(--c-bg); }
 
+/* 手動保存ボタン */
+.save-all-btn {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  background: var(--c-accent);
+  color: #2A7A4F;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 800;
+  border: none;
+  letter-spacing: 0.02em;
+}
+.save-all-btn:active { opacity: 0.75; }
+
 .card-body {
   padding: 8px;
   display: flex;
@@ -497,6 +511,33 @@ input, select { font-family: inherit; font-size: inherit; }
   border: none;
 }
 .now-btn-sm:active { opacity: 0.7; }
+
+/* 個別クリアボタン (×) */
+.clr-btn-sm {
+  flex-shrink: 0;
+  padding: 4px 5px;
+  background: #F5F5F5;
+  color: #999;
+  border-radius: var(--radius-sm);
+  font-size: 0.65rem;
+  font-weight: 700;
+  border: none;
+  line-height: 1;
+}
+.clr-btn-sm:active { background: #FFCCC7; color: var(--c-error); }
+
+/* 排泄クリアボタン */
+.clr-btn {
+  flex-shrink: 0;
+  padding: 5px 7px;
+  background: #F5F5F5;
+  color: #999;
+  border-radius: var(--radius-sm);
+  font-size: 0.65rem;
+  font-weight: 700;
+  border: none;
+}
+.clr-btn:active { background: #FFCCC7; color: var(--c-error); }
 
 /* ミルク量入力 */
 .milk-row {

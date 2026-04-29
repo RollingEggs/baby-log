@@ -88,13 +88,20 @@ function getSheet() {
   const ss  = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_NAME);
 
+  const expectedHeaders = ['ID', 'Date', 'Child', 'Category', 'Type',
+                           'Start', 'End', 'RightStart', 'Amount', 'Memo',
+                           'CreatedAt', 'UpdatedAt', 'RightEnd'];
+
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
-    const headers = ['ID', 'Date', 'Child', 'Category', 'Type',
-                     'Start', 'End', 'RightStart', 'Amount', 'Memo',
-                     'CreatedAt', 'UpdatedAt', 'RightEnd'];
-    sheet.appendRow(headers);
-    const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  }
+
+  // Always ensure the header row matches the current schema
+  const headerRange = sheet.getRange(1, 1, 1, expectedHeaders.length);
+  const currentHeaders = headerRange.getValues()[0].map(String);
+  const needsUpdate = expectedHeaders.some(function(h, i) { return currentHeaders[i] !== h; });
+  if (needsUpdate) {
+    headerRange.setValues([expectedHeaders]);
     headerRange.setFontWeight('bold');
     headerRange.setBackground('#FFE8EA');
     headerRange.setFontColor('#4A4A4A');

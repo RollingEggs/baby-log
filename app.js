@@ -270,10 +270,6 @@ function addFeedingCard(container, child, data) {
       card.querySelector('.feeding-right-end').value   = data.rightEnd   || '';
     }
     card.querySelector('.feeding-memo').value = data.memo || '';
-  } else {
-    const now = currentTimeString();
-    card.querySelector('.feeding-milk-start').value = now;
-    card.querySelector('.feeding-left-start').value = now;
   }
 
   syncFeedingTypeVisibility(card);
@@ -318,6 +314,24 @@ function attachFeedingCardEvents(card) {
     if (!el) return;
     el.addEventListener('click', () => {
       card.querySelector(field).value = currentTimeString();
+      executeSave(card);
+    });
+  });
+
+  [
+    { btn: '.feeding-left-start-clr',  field: '.feeding-left-start' },
+    { btn: '.feeding-left-end-clr',    field: '.feeding-left-end' },
+    { btn: '.feeding-right-start-clr', field: '.feeding-right-start' },
+    { btn: '.feeding-right-end-clr',   field: '.feeding-right-end' },
+    { btn: '.feeding-milk-start-clr',  field: '.feeding-milk-start' },
+    { btn: '.feeding-milk-end-clr',    field: '.feeding-milk-end' },
+  ].forEach(({ btn, field }) => {
+    const el = card.querySelector(btn);
+    if (!el) return;
+    el.addEventListener('click', () => {
+      const input = card.querySelector(field);
+      input.value = '';
+      input.blur();
       executeSave(card);
     });
   });
@@ -367,8 +381,6 @@ function addExcretionCard(container, child, data) {
     card.querySelector('.excretion-type').value = data.type || 'おしっこ';
     card.querySelector('.excretion-time').value = data.start || data.time || '';
     card.querySelector('.excretion-memo').value = data.memo || '';
-  } else {
-    card.querySelector('.excretion-time').value = currentTimeString();
   }
 
   attachExcretionCardEvents(card);
@@ -392,6 +404,13 @@ function attachExcretionCardEvents(card) {
 
   card.querySelector('.excretion-now-btn').addEventListener('click', () => {
     card.querySelector('.excretion-time').value = currentTimeString();
+    executeSave(card);
+  });
+
+  card.querySelector('.excretion-clr-btn').addEventListener('click', () => {
+    const input = card.querySelector('.excretion-time');
+    input.value = '';
+    input.blur();
     executeSave(card);
   });
 
@@ -426,6 +445,26 @@ async function executeSave(card) {
     showSaveStatus('saved', '✓ 保存しました');
   } catch (err) {
     console.error('executeSave:', err);
+    showSaveStatus('error', `保存エラー: ${err.message}`);
+  }
+}
+
+async function saveAllCards() {
+  const activeView = document.querySelector('.view.active');
+  if (!activeView) return;
+  const cards = activeView.querySelectorAll('.feeding-card, .excretion-card');
+  if (cards.length === 0) { showSaveStatus('saved', '✓ 保存済み'); return; }
+  showSaveStatus('saving', '保存中...');
+  try {
+    await Promise.all(Array.from(cards).map((card) => {
+      const data = card.classList.contains('feeding-card')
+        ? collectFeedingData(card)
+        : collectExcretionData(card);
+      return apiSaveRecord(data);
+    }));
+    showSaveStatus('saved', '✓ すべて保存しました');
+  } catch (err) {
+    console.error('saveAllCards:', err);
     showSaveStatus('error', `保存エラー: ${err.message}`);
   }
 }
@@ -887,6 +926,7 @@ async function startApp() {
     initDateNav();
     initAddButtons();
     initStatsTab();
+    document.getElementById('save-all-btn').addEventListener('click', saveAllCards);
   }
   await loadRecords(state.currentDate);
 }
