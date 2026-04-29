@@ -365,7 +365,7 @@ function addExcretionCard(container, child, data) {
 
   if (data) {
     card.querySelector('.excretion-type').value = data.type || 'おしっこ';
-    card.querySelector('.excretion-time').value = data.time || '';
+    card.querySelector('.excretion-time').value = data.start || data.time || '';
     card.querySelector('.excretion-memo').value = data.memo || '';
   } else {
     card.querySelector('.excretion-time').value = currentTimeString();
@@ -407,7 +407,7 @@ function collectExcretionData(card) {
     child:    Number(card.dataset.child),
     category: 'excretion',
     type:     card.querySelector('.excretion-type').value,
-    time:     card.querySelector('.excretion-time').value,
+    start:    card.querySelector('.excretion-time').value,
     memo:     card.querySelector('.excretion-memo').value,
   };
 }
@@ -562,25 +562,51 @@ async function loadStats() {
   const period = resolveStatsPeriod();
   if (!period) return;
   setStatsLoading(true);
-  try {
-    const [statsData, dayRecords] = await Promise.all([
-      apiFetchStats(period.from, period.to),
-      apiFetchRecords(state.currentDate),
-    ]);
-    renderTimetable(dayRecords);
-    renderStatsNumbers(statsData);
-    renderCharts(statsData);
-  } catch (err) {
-    console.error('loadStats:', err);
-    showError(`統計の取得に失敗しました。\n${err.message}`);
-  } finally {
-    setStatsLoading(false);
+
+  const [timelineResult, statsResult] = await Promise.allSettled([
+    apiFetchRecords(state.currentDate),
+    apiFetchStats(period.from, period.to),
+  ]);
+
+  if (timelineResult.status === 'fulfilled') {
+    renderTimetable(timelineResult.value);
+  } else {
+    console.error('loadStats (timeline):', timelineResult.reason);
+    renderTimetable([]);
   }
+
+  if (statsResult.status === 'fulfilled') {
+    renderStatsNumbers(statsResult.value);
+    renderCharts(statsResult.value);
+  } else {
+    console.error('loadStats (stats):', statsResult.reason);
+    showError(`統計の取得に失敗しました。\n${statsResult.reason.message}`);
+  }
+
+  setStatsLoading(false);
 }
 
 /* ============================================================
-   タイムテーブル
+   視覚タイムライン
    ============================================================ */
+
+const VT_HOUR_H = 40; // 1時間あたりのピクセル高さ
+
+function timeToY(timeStr) {
+  if (!timeStr || !timeStr.includes(':')) return null;
+  const [h, m] = timeStr.split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return null;
+  return (h * 60 + m) / 60 * VT_HOUR_H;
+}
+
+function vtEventLabel(r) {
+  if (r.category === 'feeding') {
+    return r.type === 'ミルク'
+      ? (r.amount != null ? `ミルク ${r.amount}ml` : 'ミルク')
+      : '母乳';
+  }
+  return r.type || '排泄';
+}
 
 function renderTimetable(records) {
   const dateLabel = document.getElementById('timetable-date');
@@ -589,57 +615,70 @@ function renderTimetable(records) {
   const body = document.getElementById('timetable-body');
   body.innerHTML = '';
 
-  const byHour = {};
-  records.forEach((r) => {
-    if (!r.time) return;
-    const hour = parseInt(r.time.split(':')[0], 10);
-    if (!byHour[hour]) byHour[hour] = { c1: [], c2: [] };
-    byHour[hour][r.child == 1 ? 'c1' : 'c2'].push(r);
-  });
-
-  const hours = Object.keys(byHour).map(Number).sort((a, b) => a - b);
-  if (hours.length === 0) {
+  if (records.length === 0) {
     body.innerHTML = '<div class="timetable-empty">この日のデータがありません</div>';
     return;
   }
 
-  hours.forEach((hour) => {
-    const { c1, c2 } = byHour[hour];
-    const row = document.createElement('div');
-    row.className = 'tt-row';
-    row.innerHTML = `
-      <div class="tt-events">${buildEventHTML(c1)}</div>
-      <div class="tt-time-col">
-        <span class="tt-time-label">${String(hour).padStart(2, '0')}:00</span>
-      </div>
-      <div class="tt-events">${buildEventHTML(c2)}</div>
-    `;
-    body.appendChild(row);
-  });
-}
+  const totalH = VT_HOUR_H * 24;
 
-function buildEventHTML(events) {
-  if (!events || events.length === 0) return '';
-  return events.map((r) => {
-    const cls = r.category === 'feeding' ? 'tt-feeding' : 'tt-excretion';
-    let detail = '';
-    if (r.category === 'feeding') {
-      if (r.type === 'ミルク') {
-        detail = r.amount != null ? `${r.amount}ml` : '';
-      } else {
-        const parts = [];
-        if (r.start) parts.push(`左${r.start}${r.end ? '〜' + r.end : ''}`);
-        if (r.rightStart) parts.push(`右${r.rightStart}${r.rightEnd ? '〜' + r.rightEnd : ''}`);
-        detail = parts.join(' ');
-      }
-    } else {
-      detail = r.type;
-    }
-    return `<div class="tt-event ${cls}">
-      <span class="tt-event-time">${r.start || ''}</span>
-      <span class="tt-event-detail">${detail}</span>
-    </div>`;
-  }).join('');
+  const wrapper = document.createElement('div');
+  wrapper.className = 'vt-wrapper';
+  wrapper.style.height = totalH + 'px';
+
+  // グリッドライン（2時間ごと）
+  for (let h = 0; h <= 24; h += 2) {
+    const line = document.createElement('div');
+    line.className = 'vt-gridline';
+    line.style.top = (h * VT_HOUR_H) + 'px';
+    wrapper.appendChild(line);
+  }
+
+  const col1 = document.createElement('div');
+  col1.className = 'vt-col';
+
+  const axis = document.createElement('div');
+  axis.className = 'vt-axis';
+  for (let h = 0; h <= 24; h += 2) {
+    const lbl = document.createElement('div');
+    lbl.className = 'vt-hour-label';
+    lbl.style.top = (h * VT_HOUR_H) + 'px';
+    lbl.textContent = String(h).padStart(2, '0') + ':00';
+    axis.appendChild(lbl);
+  }
+
+  const col2 = document.createElement('div');
+  col2.className = 'vt-col';
+
+  function addEvents(col, events) {
+    events.forEach((r) => {
+      const y = timeToY(r.start);
+      if (y === null) return;
+      const endY  = timeToY(r.end);
+      const minH  = 24;
+      const evH   = (endY !== null && endY > y) ? Math.max(endY - y, minH) : minH;
+
+      const ev = document.createElement('div');
+      ev.className = 'vt-event ' + (r.category === 'feeding' ? 'vt-feeding' : 'vt-excretion');
+      ev.style.top    = y + 'px';
+      ev.style.height = evH + 'px';
+
+      const timeStr = r.end ? `${r.start} - ${r.end}` : (r.start || '');
+      ev.innerHTML =
+        `<span class="vt-ev-name">${vtEventLabel(r)}</span>` +
+        `<span class="vt-ev-time">${timeStr}</span>`;
+
+      col.appendChild(ev);
+    });
+  }
+
+  addEvents(col1, records.filter((r) => r.child == 1));
+  addEvents(col2, records.filter((r) => r.child == 2));
+
+  wrapper.appendChild(col1);
+  wrapper.appendChild(axis);
+  wrapper.appendChild(col2);
+  body.appendChild(wrapper);
 }
 
 /* ============================================================

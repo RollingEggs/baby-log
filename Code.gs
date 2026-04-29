@@ -102,9 +102,12 @@ function getSheet() {
 
   // 日付・時刻列は常に文字列フォーマットを適用（GASの自動変換防止）
   const lastRow = Math.max(sheet.getLastRow(), 2);
+  const lastCol = sheet.getLastColumn();
   const textCols = [COL.DATE, COL.START, COL.END, COL.RIGHT_START, COL.RIGHT_END];
   textCols.forEach(function(col) {
-    sheet.getRange(2, col + 1, lastRow - 1, 1).setNumberFormat('@STRING@');
+    if (col + 1 <= lastCol) {
+      sheet.getRange(2, col + 1, lastRow - 1, 1).setNumberFormat('@STRING@');
+    }
   });
 
   return sheet;
@@ -113,12 +116,25 @@ function getSheet() {
 function getAllRows(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return [];
-  return sheet.getRange(2, 1, lastRow - 1, COL.COUNT).getValues();
+  const lastCol = Math.max(sheet.getLastColumn(), 1);
+  const rows = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  return rows.map(function(row) {
+    while (row.length < COL.COUNT) row.push('');
+    return row;
+  });
 }
 
 function cellToStr(val) {
   if (val instanceof Date) {
     return Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  if (val === null || val === undefined) return '';
+  return String(val).trim();
+}
+
+function cellToTimeStr(val) {
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, Session.getScriptTimeZone(), 'HH:mm');
   }
   if (val === null || val === undefined) return '';
   return String(val).trim();
@@ -132,10 +148,10 @@ function rowToRecord(row) {
     child:      Number(row[COL.CHILD]) || 1,
     category:   cellToStr(row[COL.CATEGORY]),
     type:       cellToStr(row[COL.TYPE]),
-    start:      cellToStr(row[COL.START]),
-    end:        cellToStr(row[COL.END]),
-    rightStart: cellToStr(row[COL.RIGHT_START]),
-    rightEnd:   cellToStr(row[COL.RIGHT_END]),
+    start:      cellToTimeStr(row[COL.START]),
+    end:        cellToTimeStr(row[COL.END]),
+    rightStart: cellToTimeStr(row[COL.RIGHT_START]),
+    rightEnd:   cellToTimeStr(row[COL.RIGHT_END]),
     amount:     (amount !== '' && amount !== null && !isNaN(Number(amount))) ? Number(amount) : null,
     memo:       cellToStr(row[COL.MEMO]),
   };
